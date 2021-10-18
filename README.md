@@ -1,60 +1,103 @@
 # SweetSpot
 
-> SweetSpot helps you find better monitor and listening positions by measuring what actually happens in the room. It guides a simple loop: measure, move one thing, measure again, compare.
+> **Simulador Acústico Interactivo y Asistente Experimental de Posicionamiento de Monitores y Oyente.**
+> 
+> *Optimizar la ubicación física antes de intentar corregir electrónicamente.*
 
-> It optimizes placement before correction.
+[![GitHub Pages](https://img.shields.io/badge/Demo%20En%20Vivo-GitHub%20Pages-0284c7?style=for-the-badge&logo=github)](https://lorenhey.github.io/SweetSpot/)
+[![Python](https://img.shields.io/badge/Python-3.12-blue?style=flat-square&logo=python)](https://python.org)
+[![PySide6](https://img.shields.io/badge/GUI-PySide6-41cd52?style=flat-square&logo=qt)](https://qt.io)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-**SweetSpot is not an automatic EQ system.** It is an experimental assistant to find the physical "sweet spot" in your room.
+---
 
-## Philosophy
+## 🌐 Simulador Web Interactivo (Zero-Backend)
 
-Before you apply electronic equalization (EQ, Dirac, Sonarworks), you should move your speakers and your chair. A deep acoustic null caused by a room mode or an early reflection cannot be properly fixed with +12dB of EQ.
+Probá el simulador directamente desde tu navegador sin instalar nada:
 
-SweetSpot provides:
-1. **Quick Mode**: Relative measurements to compare positions rapidly.
-2. **Measurement Mode**: Calibrated measurements when precision is needed.
-3. **Controlled Experiments**: Recommends moving one variable at a time (e.g., "Move listener 10cm forward").
-4. **Transparent Trade-offs**: Shows exactly what improved and what worsened with each move.
+👉 **[https://lorenhey.github.io/SweetSpot/](https://lorenhey.github.io/SweetSpot/)**
 
-## Features
+- **Lienzo 2D a 60 FPS:** Arrastrá y ubicá libremente los monitores y tu cabeza en el plano métrico de la sala.
+- **Física de Modos Propios:** Cálculo exacto de modos axiales, tangenciales y oblicuos mediante la fórmula de Rayleigh.
+- **Corte de Schroeder ($f_s$):** Cálculo de la frontera entre comportamiento modal discreto y campo difuso.
+- **Interferencias de Frontera (SBIR):** Cancelaciones de cuarto de onda ($\lambda / 4$) en tiempo real para paredes frontal, laterales, piso y techo.
+- **Trazado de Rayos Especulares (RFZ):** Detección visual de los puntos de primeras reflexiones sobre los muros para ubicar paneles absorbentes con la técnica del espejo.
+- **Asistente Heurístico:** Propuestas paso a paso de experimentos físicos modificando una variable a la vez.
 
-- **Measure**: Sine sweeps and IR deconvolution.
-- **Understand**: Frequency response, Energy Time Curve (ETC), L/R mismatch, Decay.
-- **Move**: Heuristic engine suggests the next physical placement experiment.
-- **Compare**: Before/After overlays, null depth tracking.
+---
 
-## Quick Start
+## 🎯 Filosofía de Ingeniería
+
+Antes de aplicar ecualización electrónica (Dirac, Sonarworks, miniDSP), **mové tus parlantes y tu silla**. 
+
+Un nulo acústico profundo provocado por interferencia destructiva de frontera (SBIR) o un nodo axial de la sala es un **sistema de fase no mínima**:
+1. La onda directa y la onda reflejada provienen del mismo parlante.
+2. Si aplicás $+12\text{ dB}$ en el DSP a 80 Hz, amplificás tanto la onda directa como la que choca contra la pared.
+3. Ambas se cancelan con la misma severidad en tus oídos, pero tu amplificador pierde todo el *headroom* y el parlante entra en distorsión armónica no lineal.
+
+**Los problemas de ubicación física requieren soluciones acústicas físicas.**
+
+---
+
+## 📦 Suite de Escritorio Python (`sweetspot`)
+
+Además de la aplicación web, el repositorio incluye el paquete de escritorio profesional en Python:
+
+### Instalación
 
 ```bash
-# Clone the repository
+# Clonar el repositorio
 git clone https://github.com/lorenhey/SweetSpot.git
 cd SweetSpot
 
-# Install dependencies using uv
+# Crear entorno virtual e instalar dependencias
 uv sync
 
-# Run the CLI Demo
-uv run sweetspot demo
+# O con pip tradicional:
+python -m venv .venv
+source .venv/bin/activate  # En Windows: .venv\Scripts\Activate.ps1
+pip install -e .
+```
 
-# Run the GUI
+### Ejecución de la Interfaz Gráfica (PySide6)
+
+```bash
 uv run sweetspot-gui
 ```
 
-## Development
-
-SweetSpot is built with Python, PySide6, numpy, and scipy.
+### CLI y Medición por Sine Sweep Logarítmico
 
 ```bash
-uv run pytest
+# Ejecutar demo sintética
+uv run sweetspot demo
+
+# Generar barrido sinusoidal de prueba
+uv run sweetspot sweep --start 20 --end 20000 --duration 5.0 --output sweep.wav
+
+# Medir respuesta al impulso real con interfaz de audio y micrófono calibrado
+uv run sweetspot measure --input-device 1 --output-device 2 --out-dir ./mediciones
 ```
 
-## Limitations
+### Ejecución de Tests
 
-- V1 assumes 1 room, 1 listener, 2 monitors.
-- No automatic EQ or FIR generation. (Position first!)
-- No multi-seat optimization.
-- Extended band measurements require explicit opt-in.
+```bash
+$env:PYTHONPATH="src"; uv run pytest
+```
 
-## License
+---
 
-MIT
+## 📐 Criterios y Métricas Soportadas
+
+- **Frecuencia de Schroeder:** $f_s \approx 2000 \sqrt{T_{60} / V}$
+- **Ecuación de Rayleigh:** $f = \frac{c}{2} \sqrt{(n_x/W)^2 + (n_y/L)^2 + (n_z/H)^2}$
+- **Nulo de Cuarto de Onda SBIR:** $f_{\text{null}} \approx \frac{c}{4 d_w}$
+- **Criterio de Bonello:** Monotonía en densidad de modos por tercio de octava (20 Hz - 250 Hz).
+- **Proporciones de Bolt & Sepmeyer:** Detección de degeneraciones modales en salas cúbicas o de planta cuadrada.
+- **Regla del 38% de Wes Lachot:** Ubicación neutral respecto a nodos centrales (50%) y de cuartos de onda (25% / 75%).
+- **Integración Retrocedida de Schroeder:** Extracción de EDT, T20 y T30 a partir de respuestas al impulso (IR).
+
+---
+
+## 📄 Licencia
+
+Distribuido bajo licencia MIT. Consultá el archivo [LICENSE](LICENSE) para más información.

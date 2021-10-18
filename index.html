@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SweetSpot - Laboratorio Acústico y Simulador de Monitores</title>
+  <meta name="description" content="Simulador interactivo 2D de acústica de recintos, modos propios, interferencias de frontera SBIR, zonas de reflexión temprana RFZ y asistente de optimización física de monitores y oyente.">
+  
+  <!-- Estilos -->
+  <link rel="stylesheet" href="css/style.css">
+  
+  <!-- KaTeX para renderizado de fórmulas matemáticas -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+</head>
+<body>
+
+  <!-- Encabezado Principal y Barra Superior -->
+  <header class="top-header">
+    <div class="brand-section">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9c.55 0 1 .45 1 1 0 2.21 1.79 4 4 4s4-1.79 4-4c0-.55.45-1 1-1s1 .45 1 1c0 3.31-2.69 6-6 6s-6-2.69-6-6c0-.55.45-1 1-1zm5-5c-2.21 0-4 1.79-4 4 0 .55-.45 1-1 1s-1-.45-1-1c0-3.31 2.69-6 6-6s6 2.69 6 6c0 .55-.45 1-1 1s-1-.45-1-1c0-2.21-1.79-4-4-4zm0 6c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1z"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-title">
+          <span>SweetSpot</span>
+          <span class="brand-version">v2.0.0</span>
+        </div>
+        <div class="brand-subtitle">Laboratorio Acústico y Posicionamiento Físico de Monitores</div>
+      </div>
+    </div>
+
+    <!-- Badges de Métricas Físicas en Tiempo Real -->
+    <div class="top-metrics-bar">
+      <span class="badge badge-warning" id="badge-schroeder" title="Frecuencia de transición de Schroeder">fs = --- Hz</span>
+      <span class="badge badge-success" id="badge-bolt" title="Relación dimensional según Bolt">Bolt: Evaluando</span>
+      <span class="badge badge-info" id="badge-bonello" title="Monotonía de densidad modal en 1/3 de octava">Bonello: Evaluando</span>
+      <span class="badge badge-danger" id="badge-sbir-front" title="Nulo de cancelación SBIR por pared frontal">SBIR Front: --- Hz</span>
+    </div>
+
+    <!-- Presets y Exportación -->
+    <div class="header-actions">
+      <select class="select-control" id="preset-select" title="Cargar recinto predeterminado">
+        <option value="home-studio">Home Studio Típico (4.80 × 3.60 × 2.50 m)</option>
+        <option value="pro-control">Control Room Profesional (6.20 × 4.80 × 2.90 m)</option>
+        <option value="mastering-bolt">Mastering Ratio Sepmeyer (7.00 × 4.80 × 3.00 m)</option>
+        <option value="cubic-worst">Sala Cúbica Crítica (3.50 × 3.50 × 3.50 m)</option>
+      </select>
+
+      <div class="btn-group">
+        <button class="btn" id="btn-export-json" title="Exportar sesión completa en formato JSON">JSON</button>
+        <button class="btn" id="btn-export-csv" title="Exportar curva de respuesta espectral en CSV">CSV</button>
+        <button class="btn" id="btn-export-png" title="Exportar plano de la sala en imagen PNG">PNG</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navegación por Pestañas -->
+  <nav class="nav-tabs">
+    <button class="nav-tab-btn active" data-target="tab-simulador">
+      <span>📐</span> Laboratorio Acústico 2D
+    </button>
+    <button class="nav-tab-btn" data-target="tab-experimentos">
+      <span>🔬</span> Asistente Experimental Paso a Paso
+    </button>
+    <button class="nav-tab-btn" data-target="tab-teoria">
+      <span>📚</span> Tratado de Acústica de Recintos
+    </button>
+    <button class="nav-tab-btn" data-target="tab-python">
+      <span>🐍</span> Suite Python SweetSpot
+    </button>
+  </nav>
+
+  <!-- Contenedor Principal de Vistas -->
+  <main class="main-content">
+
+    <!-- PESTAÑA 1: SIMULADOR ACÚSTICO 2D -->
+    <div class="tab-pane active" id="tab-simulador">
+      <div class="simulator-layout">
+
+        <!-- Columna Izquierda: Parámetros del Recinto y Geometría -->
+        <aside class="sidebar-left">
+          
+          <!-- Panel de Dimensiones de Sala -->
+          <div class="panel" style="margin-bottom: 1rem;">
+            <div class="panel-header">
+              <span class="panel-title">🏠 Dimensiones del Recinto</span>
+            </div>
+            <div class="panel-body">
+              <div class="control-group">
+                <div class="control-label">
+                  <span>Largo L (Pared Frontal a Trasera)</span>
+                  <span id="label-room-l">m</span>
+                </div>
+                <div class="slider-row">
+                  <input type="range" id="slider-room-l" min="2.5" max="12.0" step="0.05" value="4.80">
+                  <input type="number" id="input-room-l" class="number-input" min="2.5" max="12.0" step="0.05" value="4.80">
+                </div>
+              </div>
+
+              <div class="control-group">
+                <div class="control-label">
+                  <span>Ancho W (Paredes Laterales)</span>
+                  <span id="label-room-w">m</span>
+                </div>
+                <div class="slider-row">
+                  <input type="range" id="slider-room-w" min="2.0" max="9.0" step="0.05" value="3.60">
+                  <input type="number" id="input-room-w" class="number-input" min="2.0" max="9.0" step="0.05" value="3.60">
+                </div>
+              </div>
+
+              <div class="control-group">
+                <div class="control-label">
+                  <span>Altura H (Piso a Techo)</span>
+                  <span id="label-room-h">m</span>
+                </div>
+                <div class="slider-row">
+                  <input type="range" id="slider-room-h" min="2.0" max="5.0" step="0.05" value="2.50">
+                  <input type="number" id="input-room-h" class="number-input" min="2.0" max="5.0" step="0.05" value="2.50">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel de Oyente (Sweet Spot) -->
+          <div class="panel" style="margin-bottom: 1rem;">
+            <div class="panel-header">
+              <span class="panel-title">👤 Posición del Oyente (Sweet Spot)</span>
+            </div>
+            <div class="panel-body">
+              <div class="control-group">
+                <div class="control-label"><span>Longitudinal Y (desde pared frontal)</span></div>
+                <input type="number" id="input-listener-y" class="number-input" style="width: 100%; text-align: left;" min="0.2" max="12" step="0.02" value="1.82">
+              </div>
+              <div class="control-group">
+                <div class="control-label"><span>Lateral X (desde pared izquierda)</span></div>
+                <input type="number" id="input-listener-x" class="number-input" style="width: 100%; text-align: left;" min="0.2" max="9" step="0.02" value="1.80">
+              </div>
+              <div class="control-group">
+                <div class="control-label"><span>Altura Z (altura orejas sentado)</span></div>
+                <input type="number" id="input-listener-z" class="number-input" style="width: 100%; text-align: left;" min="0.5" max="2.5" step="0.05" value="1.20">
+              </div>
+            </div>
+          </div>
+
+          <!-- Panel de Monitores Estéreo -->
+          <div class="panel" style="margin-bottom: 1rem;">
+            <div class="panel-header">
+              <span class="panel-title">🔊 Monitores Estéreo</span>
+            </div>
+            <div class="panel-body">
+              <div class="control-group">
+                <div class="control-label"><span>Distancia a Pared Frontal (Y)</span></div>
+                <input type="number" id="input-mon-left-y" class="number-input" style="width: 100%; text-align: left;" min="0.1" max="5" step="0.02" value="0.65">
+              </div>
+              <div class="control-group">
+                <div class="control-label"><span>Separación Lateral Monitor Izquierdo (X)</span></div>
+                <input type="number" id="input-mon-left-x" class="number-input" style="width: 100%; text-align: left;" min="0.1" max="9" step="0.02" value="1.05">
+              </div>
+              <div class="control-group">
+                <div class="control-label"><span>Separación Lateral Monitor Derecho (X)</span></div>
+                <input type="number" id="input-mon-right-x" class="number-input" style="width: 100%; text-align: left;" min="0.1" max="9" step="0.02" value="2.55">
+              </div>
+              <div class="control-group">
+                <div class="control-label"><span>Ángulo Toe-In (Giro hacia el Oyente)</span></div>
+                <input type="number" id="input-toe-in" class="number-input" style="width: 100%; text-align: left;" min="-45" max="45" step="1" value="30">
+              </div>
+            </div>
+          </div>
+
+          <!-- Opciones de Visualización y Capas -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">👁 Capas y Guías Acústicas</span>
+            </div>
+            <div class="panel-body">
+              <div class="toggle-row">
+                <label><input type="checkbox" id="toggle-stereo-link" checked> Simetría Estéreo Vinculada</label>
+              </div>
+              <div class="toggle-row">
+                <label><input type="checkbox" id="toggle-auto-toe-in" checked> Auto Toe-In (Apuntar a orejas)</label>
+              </div>
+              <div class="toggle-row">
+                <label><input type="checkbox" id="toggle-triangle" checked> Triángulo Estéreo y Cotas</label>
+              </div>
+              <div class="toggle-row">
+                <label><input type="checkbox" id="toggle-38-rule" checked> Regla 38% y Zona Peligro 50%</label>
+              </div>
+              <div class="toggle-row">
+                <label><input type="checkbox" id="toggle-rays" checked> Trazado de Rayos Especulares</label>
+              </div>
+              <div class="toggle-row">
+                <label><input type="checkbox" id="toggle-rfz" checked> Puntos de Tratamiento RFZ</label>
+              </div>
+              <div class="toggle-row">
+                <label><input type="checkbox" id="toggle-heatmap"> Mapa de Calor Modal 2D</label>
+              </div>
+              <div class="control-group" style="margin-top: 0.5rem;">
+                <select class="select-control" id="select-heatmap-mode" style="width: 100%;">
+                  <!-- Se puebla dinámicamente -->
+                </select>
+              </div>
+            </div>
+          </div>
+
+        </aside>
+
+        <!-- Columna Central: Lienzo 2D y Espectrograma de Frecuencia -->
+        <section class="main-viewer">
+          
+          <!-- Plano 2D de la Sala -->
+          <div class="panel" style="margin-bottom: 1.25rem;">
+            <div class="panel-header">
+              <span class="panel-title">📐 Plano Arquitectónico del Estudio (Arrastrá monitores y oyente)</span>
+              <span style="font-size: 0.75rem; color: var(--text-dim); font-family: var(--font-mono);">Interacción en tiempo real (60 FPS)</span>
+            </div>
+            <div class="canvas-wrapper">
+              <canvas id="studio-canvas"></canvas>
+            </div>
+            <div class="canvas-legend">
+              <div class="legend-item"><span class="legend-color" style="background: #38bdf8;"></span> Monitores Estéreo</div>
+              <div class="legend-item"><span class="legend-color" style="background: #10b981;"></span> Sweet Spot Oyente</div>
+              <div class="legend-item"><span class="legend-color" style="background: #06b6d4;"></span> Triángulo Equilátero (60°)</div>
+              <div class="legend-item"><span class="legend-color" style="background: #f59e0b;"></span> Puntos RFZ / Espejo</div>
+              <div class="legend-item"><span class="legend-color" style="background: rgba(239,68,68,0.7);"></span> Zona Crítica 50% (Nodo)</div>
+            </div>
+          </div>
+
+          <!-- Gráfico de Respuesta en Frecuencia y SBIR -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">📊 Respuesta Espectral Sintética en el Sweet Spot (20 Hz - 500 Hz)</span>
+              <span style="font-size: 0.75rem; color: var(--text-dim); font-family: var(--font-mono);">Interferencia SBIR + Modos Propios</span>
+            </div>
+            <div class="canvas-wrapper">
+              <canvas id="response-canvas"></canvas>
+            </div>
+            <div class="canvas-legend">
+              <div class="legend-item"><span class="legend-color" style="background: #38bdf8;"></span> Respuesta Total (SPL Combinado)</div>
+              <div class="legend-item"><span class="legend-color" style="background: #f59e0b;"></span> Curva SBIR (Cancelaciones de Frontera)</div>
+              <div class="legend-item"><span class="legend-color" style="background: #a78bfa;"></span> Curva Modal (Resonancias Propias)</div>
+              <div class="legend-item"><span class="legend-color" style="background: #eab308;"></span> Frecuencia de Schroeder (fs)</div>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- Columna Derecha: Diagnósticos, Modos y SBIR -->
+        <aside class="sidebar-right">
+          
+          <!-- Diagnósticos Heurísticos en Vivo -->
+          <div class="panel" style="margin-bottom: 1rem;">
+            <div class="panel-header">
+              <span class="panel-title">⚡ Diagnósticos Acústicos en Vivo</span>
+            </div>
+            <div class="panel-body" id="diagnostic-cards">
+              <!-- Se puebla dinámicamente con las tarjetas de diagnóstico -->
+            </div>
+          </div>
+
+          <!-- Modos Propios de la Sala -->
+          <div class="panel" style="margin-bottom: 1rem;">
+            <div class="panel-header">
+              <span class="panel-title">🌊 Modos Propios de la Sala</span>
+            </div>
+            <div style="max-height: 240px; overflow-y: auto;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Frecuencia</th>
+                    <th>Modo</th>
+                    <th>Tipo</th>
+                    <th>Nivel Rel.</th>
+                  </tr>
+                </thead>
+                <tbody id="modes-table-body">
+                  <!-- Se puebla dinámicamente -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Interferencias de Frontera SBIR -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">🧱 Interferencias SBIR por Pared</span>
+            </div>
+            <div style="max-height: 220px; overflow-y: auto;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Frontera</th>
+                    <th>Dist.</th>
+                    <th>1º Nulo (λ/4)</th>
+                    <th>Pico (λ/2)</th>
+                    <th>Demora</th>
+                  </tr>
+                </thead>
+                <tbody id="sbir-table-body">
+                  <!-- Se puebla dinámicamente -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </aside>
+
+      </div>
+    </div>
+
+    <!-- PESTAÑA 2: ASISTENTE EXPERIMENTAL -->
+    <div class="tab-pane" id="tab-experimentos">
+      <div class="doc-container">
+        <h1>🔬 Asistente Experimental y Optimización Paso a Paso</h1>
+        <p>
+          La filosofía cardinal de <strong>SweetSpot</strong> es que la acústica de una sala no se soluciona comprando ecualizadores digitales ni moviendo muebles al azar. Se optimiza mediante el <em>método científico experimental</em>: <strong>modificar una sola variable física por vez</strong>, predecir el comportamiento, medir la respuesta y comparar los resultados.
+        </p>
+
+        <div class="callout callout-info">
+          <h3>Estrategia Metodológica Recomendada</h3>
+          <ol>
+            <li><strong>Fijar la geometría estéreo:</strong> Asegurar simetría lateral exacta respecto a las paredes laterales y triángulo equilátero de 60°.</li>
+            <li><strong>Optimizar la posición longitudinal del oyente:</strong> Ubicarse en la zona dorada del 38% (Wes Lachot) para alejarse tanto del nodo central (50%) como de los antinodos en las paredes.</li>
+            <li><strong>Resolver el SBIR de la pared frontal:</strong> Si los monitores no pueden colocarse a más de 1.8 metros de la pared frontal, <em>acércalos lo más posible a la pared (&lt; 20 cm)</em>. Esto empuja el nulo de cuarto de onda por encima de 350 Hz, donde cualquier trampa de absorción porosa convencional de 7 a 10 cm lo elimina limpiamente.</li>
+          </ol>
+        </div>
+
+        <div style="text-align: center; margin: 2rem 0;">
+          <button class="btn btn-primary" id="btn-propose-experiment" style="font-size: 1rem; padding: 0.8rem 1.6rem;">
+            🎯 Proponer Siguiente Experimento Físico
+          </button>
+        </div>
+
+        <div id="experiment-proposal-card" style="margin-bottom: 2rem;">
+          <!-- Se puebla dinámicamente -->
+        </div>
+
+        <div style="text-align: center; margin-bottom: 2rem;">
+          <button class="btn btn-success" id="btn-apply-experiment" style="display: none; font-size: 1rem; padding: 0.8rem 1.6rem;">
+            ✓ Aplicar Experimento en la Sala
+          </button>
+        </div>
+
+        <h2>Historial de Experimentos Realizados</h2>
+        <table class="data-table" style="margin-top: 1rem;">
+          <thead>
+            <tr>
+              <th>Exp #</th>
+              <th>Hora</th>
+              <th>Acción Realizada</th>
+              <th>Variable</th>
+              <th>Delta</th>
+              <th>Resumen de Configuración</th>
+            </tr>
+          </thead>
+          <tbody id="experiment-history-table">
+            <tr>
+              <td colspan="6" style="text-align: center; color: var(--text-dim); padding: 1.5rem;">
+                No hay experimentos registrados todavía. Presioná "Proponer Siguiente Experimento Físico" para comenzar.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PESTAÑA 3: TRATADO DE ACÚSTICA DE RECINTOS -->
+    <div class="tab-pane" id="tab-teoria">
+      <div class="doc-container">
+        <h1>📚 Tratado de Física Acústica de Recintos Pequeños</h1>
+        <p>
+          En recintos cerrados de dimensiones comparables a las longitudes de onda audibles (pequeñas salas de control, home studios y salas de mastering), el comportamiento del sonido en baja frecuencia (por debajo de ~300 Hz) está dominado por fenómenos de <strong>acústica ondulatoria pura</strong>: modos propios estacionarios, interferencias de frontera y reflexiones tempranas especulares.
+        </p>
+
+        <h2>1. Modos Propios de la Sala (Ecuación de Rayleigh)</h2>
+        <p>
+          Para una sala rectangular de dimensiones $L$ (largo), $W$ (ancho) y $H$ (alto) con paredes perfectamente rígidas, la ecuación de onda tridimensional se resuelve mediante la fórmula de Rayleigh:
+        </p>
+        $$f(n_x, n_y, n_z) = \frac{c}{2} \sqrt{\left(\frac{n_x}{W}\right)^2 + \left(\frac{n_y}{L}\right)^2 + \left(\frac{n_z}{H}\right)^2}$$
+        <p>
+          donde $c = 343\text{ m/s}$ es la velocidad del sonido en el aire a 20°C, y los números enteros $(n_x, n_y, n_z)$ representan los modos normales de vibración:
+        </p>
+        <ul>
+          <li><strong>Modos Axiales:</strong> Dos de los índices son cero (ej. $(1, 0, 0)$ o $(0, 2, 0)$). Involucran únicamente dos paredes enfrentadas. Son los modos más energéticos, con un factor de calidad $Q$ alto y una atenuación de $0\text{ dB}$ relativa. Son los responsables del 85% de los problemas de resonancia y retumbe en graves.</li>
+          <li><strong>Modos Tangenciales:</strong> Un solo índice es cero (ej. $(1, 1, 0)$). El sonido rebota sucesivamente entre cuatro paredes. Su energía relativa es aproximadamente $-3\text{ dB}$ respecto a los axiales.</li>
+          <li><strong>Modos Oblicuos:</strong> Ningún índice es cero (ej. $(1, 1, 1)$). Involucran las seis superficies del recinto. Su energía relativa cae a $-6\text{ dB}$ y poseen un amortiguamiento natural mayor.</li>
+        </ul>
+
+        <h2>2. Frecuencia de Corte de Schroeder ($f_s$)</h2>
+        <p>
+          Manfred Schroeder determinó en 1954 la frecuencia crítica que separa la región modal discreta de la región estadística difusa:
+        </p>
+        $$f_s \approx 2000 \sqrt{\frac{T_{60}}{V}}$$
+        <p>
+          donde $V = L \cdot W \cdot H$ es el volumen de la sala en $\text{m}^3$ y $T_{60}$ es el tiempo de reverberación en segundos.
+        </p>
+        <ul>
+          <li><strong>Por debajo de $f_s$:</strong> El recinto se comporta como un sistema resonante discreto. No existe un "campo difuso". La presión sonora depende radicalmente de la ubicación exacta de los monitores y de la cabeza del oyente.</li>
+          <li><strong>Por encima de $f_s$:</strong> La densidad modal es tan alta que los modos individuales se solapan completamente. El comportamiento acústico pasa a describirse mediante acústica geométrica (trazado de rayos y primeras reflexiones) y fórmulas estadísticas de absorción (Sabine y Eyring).</li>
+        </ul>
+
+        <h2>3. SBIR (Speaker-Boundary Interference Response)</h2>
+        <p>
+          El fenómeno SBIR se produce cuando una fuente omnidireccional de baja frecuencia (el woofer de un monitor de estudio) emite una onda sonora que viaja hacia una pared cercana, se refleja en ella y se combina en el punto de escucha con la onda directa que viajó sin obstáculos.
+        </p>
+        <p>
+          Cuando la diferencia de camino recorrido $\Delta d = d_{\text{refl}} - d_{\text{dir}}$ es igual a media longitud de onda ($\Delta d = \lambda / 2$), la onda reflejada llega con un desfasaje exacto de $180^\circ$ ($\pi$ radianes). Esto genera una <strong>cancelación destructiva total (nulo acústico)</strong> en la frecuencia:
+        </p>
+        $$f_{\text{null}} = \frac{c}{2 \Delta d} \approx \frac{c}{4 d_w}$$
+        <p>
+          donde $d_w$ es la distancia perpendicular del monitor a la pared.
+        </p>
+
+        <div class="callout callout-danger">
+          <h3>¿Por qué la Ecualización Electrónica (DSP EQ) NO puede arreglar un nulo SBIR?</h3>
+          <p>
+            Existe una creencia muy difundida entre productores de que un software de corrección de sala (Dirac, Sonarworks, miniDSP) puede arreglar cualquier pozo en la curva de frecuencia simplemente aplicando una ganancia de $+12\text{ dB}$ o $+18\text{ dB}$ en la frecuencia cancelada.
+          </p>
+          <p>
+            <strong>Esto es físicamente imposible</strong> porque el sistema no es de fase mínima:
+          </p>
+          <ul>
+            <li>La onda directa y la onda reflejada provienen <em>del mismo parlante</em>.</li>
+            <li>Si el DSP amplifica $+15\text{ dB}$ a 80 Hz, amplifica la onda directa en $+15\text{ dB}$, pero <em>también amplifica la onda que rebota en la pared en $+15\text{ dB}$</em>.</li>
+            <li>Al llegar a tus oídos, ambas ondas siguen estando desfasadas $180^\circ$ y se cancelan mutuamente con la misma profundidad.</li>
+            <li>El resultado práctico es que el nulo permanece inalterado, mientras que el amplificador del monitor se queda sin *headroom*, entra en saturación y el cono del woofer sufre excursiones mecánicas excesivas que disparan la distorsión armónica total (THD).</li>
+          </ul>
+          <p>
+            <strong>Conclusión de ingeniería:</strong> Los problemas de ubicación física se resuelven físicamente: moviendo los monitores, cambiando el asiento del oyente o instalando trampas de absorción de velocidad / resonadores de membrana.
+          </p>
+        </div>
+
+        <h2>4. La Regla del 38% de Wes Lachot</h2>
+        <p>
+          Al distribuir los modos axiales longitudinales de una sala ($n_y = 1, 2, 3, 4\dots$), se observa que:
+        </p>
+        <ul>
+          <li>En el centro exacto de la sala ($y = 0.50 L$), todos los modos axiales impares ($n_y = 1, 3, 5$) tienen un <strong>nodo de presión nulo</strong>. Sentarse en el medio de la sala garantiza perder todo el sub-grave del bombo y el bajo.</li>
+          <li>En los cuartos ($y = 0.25 L$ y $y = 0.75 L$), se anula el segundo armónico ($n_y = 2$).</li>
+          <li>En los extremos ($y = 0$ e $y = L$), todos los modos tienen antinodos de máxima presión (+15 dB o más de retumbe sucio).</li>
+        </ul>
+        <p>
+          El diseñador acústico Wes Lachot demostró que situar la cabeza del oyente al <strong>38% de la longitud de la sala</strong> ($y = 0.38 L$ desde la pared frontal, o en su defecto al $62\%$) es la posición estadísticamente más neutral, ya que esquiva tanto los valles de cancelación modal como los picos de acumulación excesiva.
+        </p>
+
+        <h2>5. Zona Libre de Reflexiones (RFZ) y la Técnica del Espejo</h2>
+        <p>
+          El cerebro humano integra las reflexiones que llegan dentro de los primeros $15\text{ a }20\text{ ms}$ después del sonido directo (Efecto Haas / Precedencia). Estas reflexiones tempranas colorean el timbre del sonido e inducen filtrado peine (*comb filtering*).
+        </p>
+        <p>
+          Para lograr una Zona Libre de Reflexiones (RFZ):
+        </p>
+        <ol>
+          <li>Sentate en tu Sweet Spot con un asistente.</li>
+          <li>El asistente desliza un espejo plano contra la pared lateral izquierda a la altura de tus orejas.</li>
+          <li>En el punto exacto de la pared donde veas reflejado el tweeter del monitor izquierdo o derecho en el espejo, ése es el <strong>punto de reflexión especular primaria</strong>.</li>
+          <li>Ahí debe montarse un panel absorbente de banda ancha (lana de roca o fibra de vidrio de alta densidad) de al menos $60 \times 120\text{ cm}$ y $7.5\text{ a }10\text{ cm}$ de espesor.</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- PESTAÑA 4: SUITE PYTHON SWEETSPOT -->
+    <div class="tab-pane" id="tab-python">
+      <div class="doc-container">
+        <h1>🐍 Suite de Software y Biblioteca Python `sweetspot`</h1>
+        <p>
+          La versión web que estás utilizando en tu navegador reproduce con fidelidad los modelos matemáticos de la biblioteca de código abierto <strong>`sweetspot`</strong>, desarrollada en Python 3.12 con soporte para hardware de audio profesional, medición de impulsos por *sine sweep* logarítmico e interfaz gráfica de escritorio en <strong>PySide6</strong>.
+        </p>
+
+        <h2>Instalación del Paquete</h2>
+        <pre><code># Clonar repositorio
+git clone https://github.com/lorenhey/SweetSpot.git
+cd SweetSpot
+
+# Crear entorno virtual con Python 3.12
+python -m venv .venv
+source .venv/bin/activate  # En Windows: .venv\Scripts\Activate.ps1
+
+# Instalar dependencias con soporte de audio y GUI
+pip install -e .</code></pre>
+
+        <h2>Ejecución de la Interfaz Gráfica (PySide6)</h2>
+        <p>
+          Para correr la aplicación de escritorio nativa con captura directa desde tu placa de sonido y micrófono calibrado:
+        </p>
+        <pre><code>sweetspot-gui</code></pre>
+
+        <h2>Medición Acústica por Línea de Comando (CLI)</h2>
+        <p>
+          Podés generar un barrido sinusoidal logarítmico (*Logarithmic Sine Sweep* con de-emphasis de $-6\text{ dB/oct}$) y medir la respuesta al impulso de tu recinto:
+        </p>
+        <pre><code># Generar un sweep de prueba de 20 Hz a 20 kHz (5 segundos)
+sweetspot sweep --start 20 --end 20000 --duration 5.0 --output sweep_20_20k.wav
+
+# Medir la sala y calcular RT60 (EDT, T20, T30)
+sweetspot measure --input-device 1 --output-device 2 --out-dir ./mediciones</code></pre>
+
+        <h2>Uso Programático desde Python</h2>
+        <pre><code>import numpy as np
+from sweetspot.dsp.sweep import LogarithmicSineSweep
+from sweetspot.dsp.analysis import deconvolve_ir
+from sweetspot.dsp.room_metrics import calculate_theoretical_modes, calculate_rt, schroeder_integration
+
+# 1. Calcular modos propios teóricos de la sala
+modes = calculate_theoretical_modes(length_m=5.2, width_m=4.0, height_m=2.6, max_freq=300)
+for m in modes[:5]:
+    print(f"Modo {m.type.upper()} ({m.nx}, {m.ny}, {m.nz}): {m.frequency:.1f} Hz")
+
+# 2. Generar sweep logarítmico de Farina
+generator = LogarithmicSineSweep(sample_rate=48000)
+sweep_signal = generator.generate(start_freq=20.0, end_freq=20000.0, duration_s=10.0)
+
+# 3. Deconvolucionar respuesta al impulso (IR)
+# ir = deconvolve_ir(recorded_audio, sweep_signal)
+
+# 4. Integración retrocedida de Schroeder y cálculo de T20/T30
+# decay_db = schroeder_integration(ir)
+# metrics = calculate_rt(decay_db, sample_rate=48000)
+# print(f"EDT: {metrics['EDT']:.2f} s | T20: {metrics['T20']:.2f} s | T30: {metrics['T30']:.2f} s")
+</code></pre>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Pie de Página -->
+  <footer class="app-footer">
+    <p>
+      <strong>SweetSpot</strong> &bull; Desarrollado por <a href="https://github.com/lorenhey" target="_blank" rel="noopener">Loren</a> &bull;
+      Basado en acústica física de recintos, criterios de Bolt/Bonello, regla del 38% de Wes Lachot e interferencias de frontera SBIR.
+    </p>
+    <p style="margin-top: 0.35rem;">
+      Repositorio oficial: <a href="https://github.com/lorenhey/SweetSpot" target="_blank" rel="noopener">github.com/lorenhey/SweetSpot</a>
+    </p>
+  </footer>
+
+  <!-- Scripts Modulares -->
+  <script type="module" src="js/app.js"></script>
+
+</body>
+</html>
