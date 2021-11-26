@@ -1,12 +1,11 @@
 /**
- * SweetSpot — Renderizador 2D de planta de sala en Canvas
- * Estética de plano arquitectónico sobre fondo claro con cotas métricas.
+ * SweetSpot - Renderizador 2D de planta de sala en Canvas
  */
 
 import { calculateMirrorReflectionRay } from './acoustics.js';
 
-const FONT_MONO = "'IBM Plex Mono', Consolas, Menlo, monospace";
-const FONT_SANS = "'IBM Plex Sans', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif";
+const FONT_MONO = "Consolas, 'Liberation Mono', Menlo, monospace";
+const FONT_SANS = "Helvetica, Arial, sans-serif";
 
 export class StudioCanvasRenderer {
   constructor(canvasElement, onStateChange) {
@@ -29,7 +28,7 @@ export class StudioCanvasRenderer {
       activeHeatmapMode: { nx: 1, ny: 0 }
     };
 
-    this.padding = 58;
+    this.padding = 54;
     this.scale = 1.0;
     this.offsetX = 0;
     this.offsetY = 0;
@@ -44,8 +43,8 @@ export class StudioCanvasRenderer {
   resize() {
     const dpr = window.devicePixelRatio || 1;
     const rect = this.canvas.getBoundingClientRect();
-    const width = rect.width || 720;
-    const height = rect.height || 500;
+    const width = rect.width || 680;
+    const height = rect.height || 460;
 
     this.canvas.width = width * dpr;
     this.canvas.height = height * dpr;
@@ -208,7 +207,7 @@ export class StudioCanvasRenderer {
     ctx.textAlign = align;
     ctx.lineJoin = 'round';
     ctx.lineWidth = 3.5;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.94)';
     ctx.strokeText(text, x, y);
     ctx.fillStyle = fillStyle;
     ctx.fillText(text, x, y);
@@ -219,58 +218,46 @@ export class StudioCanvasRenderer {
     const { ctx, displayWidth, displayHeight } = this;
     const { room, listener, leftMon, rightMon } = this.state;
 
-    // Fondo exterior tipo mesa de dibujo
-    ctx.fillStyle = '#f2f1ec';
+    ctx.fillStyle = '#fafafa';
     ctx.fillRect(0, 0, displayWidth, displayHeight);
 
-    // Interior de la sala en blanco puro
     const rX = this.toCanvasX(0);
     const rY = this.toCanvasY(0);
     const rW = room.W * this.scale;
     const rH = room.L * this.scale;
 
-    // Espesor de muro exterior arquitectónico
     const wallT = 6;
-    ctx.fillStyle = '#e2e0d7';
+    ctx.fillStyle = '#e5e5e5';
     ctx.fillRect(rX - wallT, rY - wallT, rW + wallT * 2, rH + wallT * 2);
-    ctx.strokeStyle = '#bcbab0';
+    ctx.strokeStyle = '#bbbbbb';
     ctx.lineWidth = 1;
     ctx.strokeRect(rX - wallT, rY - wallT, rW + wallT * 2, rH + wallT * 2);
 
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(rX, rY, rW, rH);
 
-    // 1. Cuadrícula métrica
     this.drawGrid();
 
-    // 2. Mapa de presión modal
     if (this.state.showHeatmap && this.state.activeHeatmapMode) {
       this.drawModalHeatmap();
     }
 
-    // 3. Guías 38% y 50%
     if (this.state.show38Rule) {
       this.drawAcousticRules();
     }
 
-    // 4. Rayos de primera reflexión y RFZ
     if (this.state.showRays) {
       this.drawReflectionRays();
     }
 
-    // 5. Triángulo estéreo
     if (this.state.showTriangle) {
       this.drawStereoTriangle();
     }
 
-    // 6. Perímetro interior de muros y cotas
     this.drawRoomWalls();
 
-    // 7. Monitores L y R
     this.drawMonitor(leftMon, 'L', this.hoverObject === 'leftMon' || this.draggingObject === 'leftMon');
     this.drawMonitor(rightMon, 'R', this.hoverObject === 'rightMon' || this.draggingObject === 'rightMon');
-
-    // 8. Oyente
     this.drawListener(listener, this.hoverObject === 'listener' || this.draggingObject === 'listener');
   }
 
@@ -285,8 +272,7 @@ export class StudioCanvasRenderer {
 
     ctx.save();
 
-    // Subdivisión cada 0.5 m
-    ctx.strokeStyle = '#f1f0ea';
+    ctx.strokeStyle = '#f2f2f2';
     ctx.lineWidth = 1;
     for (let x = 0.5; x < room.W; x += 0.5) {
       const cx = this.toCanvasX(x);
@@ -303,9 +289,7 @@ export class StudioCanvasRenderer {
       ctx.stroke();
     }
 
-    // Retícula principal cada 1.0 m
-    ctx.strokeStyle = '#e3e1d8';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#e3e3e3';
     for (let x = 1.0; x < room.W; x += 1.0) {
       const cx = this.toCanvasX(x);
       ctx.beginPath();
@@ -321,10 +305,8 @@ export class StudioCanvasRenderer {
       ctx.stroke();
     }
 
-    // Eje central longitudinal X = W/2
     const midX = this.toCanvasX(room.W / 2);
-    ctx.strokeStyle = 'rgba(115, 114, 107, 0.45)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(120, 120, 120, 0.45)';
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
     ctx.moveTo(midX, rY);
@@ -343,13 +325,12 @@ export class StudioCanvasRenderer {
 
     ctx.save();
 
-    // Franja del nodo central (50% L)
     const midY = this.toCanvasY(room.L * 0.5);
     const bandH = 0.22 * this.scale;
-    ctx.fillStyle = 'rgba(180, 35, 24, 0.06)';
+    ctx.fillStyle = 'rgba(176, 32, 32, 0.06)';
     ctx.fillRect(rX, midY - bandH / 2, rW, bandH);
 
-    ctx.strokeStyle = 'rgba(180, 35, 24, 0.55)';
+    ctx.strokeStyle = 'rgba(176, 32, 32, 0.55)';
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
@@ -358,18 +339,17 @@ export class StudioCanvasRenderer {
     ctx.stroke();
 
     this.drawTextWithHalo(
-      '50% L · nodo axial impar',
+      '50% L (nodo)',
       rX + rW - 8,
       midY + 12,
-      '#9e2219',
-      `500 10px ${FONT_MONO}`,
+      '#9e1c1c',
+      `10px ${FONT_MONO}`,
       'right'
     );
 
-    // Línea de referencia 38% (Wes Lachot)
     const y38 = this.toCanvasY(room.L * 0.38);
-    ctx.strokeStyle = 'rgba(30, 107, 69, 0.65)';
-    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = 'rgba(27, 107, 66, 0.65)';
+    ctx.lineWidth = 1.15;
     ctx.setLineDash([6, 4]);
     ctx.beginPath();
     ctx.moveTo(rX, y38);
@@ -377,17 +357,16 @@ export class StudioCanvasRenderer {
     ctx.stroke();
 
     this.drawTextWithHalo(
-      '38% L (ref.)',
+      '38% L',
       rX + 8,
       y38 - 5,
-      '#1e6b45',
-      `500 10px ${FONT_MONO}`,
+      '#1b6b42',
+      `10px ${FONT_MONO}`,
       'left'
     );
 
-    // Referencia secundaria 62%
     const y62 = this.toCanvasY(room.L * 0.62);
-    ctx.strokeStyle = 'rgba(30, 107, 69, 0.32)';
+    ctx.strokeStyle = 'rgba(27, 107, 66, 0.3)';
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
@@ -422,28 +401,27 @@ export class StudioCanvasRenderer {
         const absP = Math.abs(p);
 
         if (p > 0) {
-          ctx.fillStyle = `rgba(180, 35, 24, ${absP * 0.28})`;
+          ctx.fillStyle = `rgba(176, 32, 32, ${absP * 0.28})`;
         } else {
-          ctx.fillStyle = `rgba(36, 107, 163, ${absP * 0.28})`;
+          ctx.fillStyle = `rgba(24, 92, 160, ${absP * 0.28})`;
         }
         ctx.fillRect(rX + i * cellW, rY + j * cellH, cellW + 0.6, cellH + 0.6);
       }
     }
 
-    // Cartela legible en la esquina inferior izquierda (evita solapar monitores)
-    const tagText = `Presión modal (${nx}, ${ny}, 0)`;
-    ctx.font = `500 10px ${FONT_MONO}`;
-    const tagW = ctx.measureText(tagText).width + 14;
-    const tagY = rY + rH - 40;
+    const tagText = `Modo (${nx}, ${ny}, 0)`;
+    ctx.font = `10px ${FONT_MONO}`;
+    const tagW = ctx.measureText(tagText).width + 12;
+    const tagY = rY + rH - 38;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
-    ctx.strokeStyle = '#d7d5cc';
+    ctx.strokeStyle = '#cccccc';
     ctx.lineWidth = 1;
-    ctx.fillRect(rX + 8, tagY, tagW, 20);
-    ctx.strokeRect(rX + 8, tagY, tagW, 20);
+    ctx.fillRect(rX + 8, tagY, tagW, 19);
+    ctx.strokeRect(rX + 8, tagY, tagW, 19);
 
-    ctx.fillStyle = '#191918';
+    ctx.fillStyle = '#222222';
     ctx.textAlign = 'left';
-    ctx.fillText(tagText, rX + 15, tagY + 13);
+    ctx.fillText(tagText, rX + 14, tagY + 13);
 
     ctx.restore();
   }
@@ -473,8 +451,8 @@ export class StudioCanvasRenderer {
     ctx.save();
 
     ctx.fillStyle = isEquilateral
-      ? 'rgba(27, 73, 101, 0.045)'
-      : 'rgba(161, 92, 7, 0.045)';
+      ? 'rgba(24, 58, 97, 0.04)'
+      : 'rgba(160, 92, 0, 0.04)';
     ctx.beginPath();
     ctx.moveTo(lmx, lmy);
     ctx.lineTo(rmx, rmy);
@@ -482,7 +460,7 @@ export class StudioCanvasRenderer {
     ctx.closePath();
     ctx.fill();
 
-    const strokeColor = isEquilateral ? '#1b4965' : '#a15c07';
+    const strokeColor = isEquilateral ? '#183a61' : '#8f4f00';
     ctx.strokeStyle = strokeColor;
     ctx.lineWidth = 1.25;
     ctx.setLineDash([5, 4]);
@@ -494,31 +472,10 @@ export class StudioCanvasRenderer {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    const labelFont = `500 10px ${FONT_MONO}`;
-    this.drawTextWithHalo(
-      `${distMM.toFixed(2)} m`,
-      (lmx + rmx) / 2,
-      (lmy + rmy) / 2 - 7,
-      strokeColor,
-      labelFont,
-      'center'
-    );
-    this.drawTextWithHalo(
-      `${distML.toFixed(2)} m`,
-      (lmx + lx) / 2 - 20,
-      (lmy + ly) / 2 + 2,
-      strokeColor,
-      labelFont,
-      'center'
-    );
-    this.drawTextWithHalo(
-      `${distMR.toFixed(2)} m`,
-      (rmx + lx) / 2 + 20,
-      (rmy + ly) / 2 + 2,
-      strokeColor,
-      labelFont,
-      'center'
-    );
+    const labelFont = `10px ${FONT_MONO}`;
+    this.drawTextWithHalo(`${distMM.toFixed(2)} m`, (lmx + rmx) / 2, (lmy + rmy) / 2 - 7, strokeColor, labelFont);
+    this.drawTextWithHalo(`${distML.toFixed(2)} m`, (lmx + lx) / 2 - 20, (lmy + ly) / 2 + 2, strokeColor, labelFont);
+    this.drawTextWithHalo(`${distMR.toFixed(2)} m`, (rmx + lx) / 2 + 20, (rmy + ly) / 2 + 2, strokeColor, labelFont);
 
     ctx.restore();
   }
@@ -530,8 +487,8 @@ export class StudioCanvasRenderer {
     const ly = this.toCanvasY(listener.y);
 
     const monitors = [
-      { mon: leftMon, color: 'rgba(27, 73, 101, 0.36)' },
-      { mon: rightMon, color: 'rgba(146, 78, 22, 0.34)' }
+      { mon: leftMon, color: 'rgba(24, 58, 97, 0.35)' },
+      { mon: rightMon, color: 'rgba(143, 79, 0, 0.32)' }
     ];
 
     const walls = ['left', 'right', 'front'];
@@ -558,8 +515,8 @@ export class StudioCanvasRenderer {
 
           if (showRFZ) {
             ctx.setLineDash([]);
-            ctx.fillStyle = '#c47a17';
-            ctx.strokeStyle = '#8c5308';
+            ctx.fillStyle = '#b86d10';
+            ctx.strokeStyle = '#7d4500';
             ctx.lineWidth = 1;
 
             if (wall === 'left' || wall === 'right') {
@@ -573,9 +530,9 @@ export class StudioCanvasRenderer {
               ctx.strokeRect(sx - padW / 2, sy - 1, padW, 5);
             }
 
-            ctx.fillStyle = '#8c5308';
+            ctx.fillStyle = '#7d4500';
             ctx.beginPath();
-            ctx.arc(sx, sy, 2.5, 0, Math.PI * 2);
+            ctx.arc(sx, sy, 2.3, 0, Math.PI * 2);
             ctx.fill();
           }
         }
@@ -596,32 +553,29 @@ export class StudioCanvasRenderer {
 
     ctx.save();
 
-    // Muro interior principal
-    ctx.strokeStyle = '#1e2022';
-    ctx.lineWidth = 2.25;
+    ctx.strokeStyle = '#222222';
+    ctx.lineWidth = 2;
     ctx.strokeRect(rX, rY, rW, rH);
 
-    // Cotas exteriores
-    ctx.font = `500 11px ${FONT_MONO}`;
-    ctx.fillStyle = '#4e4d48';
+    ctx.font = `11px ${FONT_MONO}`;
+    ctx.fillStyle = '#444444';
     ctx.textAlign = 'center';
 
-    ctx.fillText(`Ancho W = ${room.W.toFixed(2)} m`, rX + rW / 2, rY - 22);
-    this.drawDimensionLine(rX, rY - 14, rX + rW, rY - 14);
+    ctx.fillText(`W = ${room.W.toFixed(2)} m`, rX + rW / 2, rY - 20);
+    this.drawDimensionLine(rX, rY - 12, rX + rW, rY - 12);
 
     ctx.save();
-    ctx.translate(rX - 24, rY + rH / 2);
+    ctx.translate(rX - 22, rY + rH / 2);
     ctx.rotate(-Math.PI / 2);
-    ctx.fillText(`Largo L = ${room.L.toFixed(2)} m`, 0, 0);
+    ctx.fillText(`L = ${room.L.toFixed(2)} m`, 0, 0);
     ctx.restore();
-    this.drawDimensionLine(rX - 14, rY, rX - 14, rY + rH);
+    this.drawDimensionLine(rX - 12, rY, rX - 12, rY + rH);
 
-    // Referencias discretas de paredes
-    ctx.font = `500 9.5px ${FONT_SANS}`;
-    ctx.fillStyle = '#73726b';
+    ctx.font = `10px ${FONT_SANS}`;
+    ctx.fillStyle = '#777777';
     ctx.textAlign = 'center';
-    ctx.fillText('PARED FRONTAL (y = 0)', rX + rW / 2, rY + 14);
-    ctx.fillText('PARED TRASERA (y = L)', rX + rW / 2, rY + rH - 6);
+    ctx.fillText('Pared frontal (y = 0)', rX + rW / 2, rY + 13);
+    ctx.fillText('Pared trasera (y = L)', rX + rW / 2, rY + rH - 6);
 
     ctx.restore();
   }
@@ -629,7 +583,7 @@ export class StudioCanvasRenderer {
   drawDimensionLine(x1, y1, x2, y2) {
     const { ctx } = this;
     ctx.save();
-    ctx.strokeStyle = '#8b8980';
+    ctx.strokeStyle = '#888888';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x1, y1);
@@ -661,50 +615,37 @@ export class StudioCanvasRenderer {
     ctx.translate(mx, my);
     ctx.rotate((mon.toeIn * Math.PI) / 180);
 
-    // Anillo sutil al pasar el cursor o arrastrar
     if (isHighlighted) {
-      ctx.strokeStyle = '#1b4965';
+      ctx.strokeStyle = '#0b4f8c';
       ctx.lineWidth = 1.5;
       ctx.strokeRect(-boxW / 2 - 4, -boxH / 2 - 4, boxW + 8, boxH + 8);
     }
 
-    // Gabinete del monitor
-    ctx.fillStyle = isHighlighted ? '#1f2326' : '#2d3033';
-    ctx.strokeStyle = '#141516';
+    ctx.fillStyle = '#262626';
+    ctx.strokeStyle = '#111111';
     ctx.lineWidth = 1.5;
     ctx.fillRect(-boxW / 2, -boxH / 2, boxW, boxH);
     ctx.strokeRect(-boxW / 2, -boxH / 2, boxW, boxH);
 
-    // Bafle frontal (borde hacia el oyente, +Y local)
-    ctx.fillStyle = '#5a5f66';
+    ctx.fillStyle = '#666666';
     ctx.fillRect(-boxW / 2 + 1, boxH / 2 - 3.5, boxW - 2, 2.5);
 
-    // Etiqueta L / R
     ctx.fillStyle = '#ffffff';
-    ctx.font = `600 10px ${FONT_MONO}`;
+    ctx.font = `bold 10px ${FONT_MONO}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(label, 0, -1);
 
-    // Eje acústico frontal
-    ctx.strokeStyle = '#1b4965';
+    ctx.strokeStyle = '#183a61';
     ctx.lineWidth = 1.25;
     ctx.beginPath();
     ctx.moveTo(0, boxH / 2);
-    ctx.lineTo(0, boxH / 2 + 11);
+    ctx.lineTo(0, boxH / 2 + 10);
     ctx.stroke();
 
     ctx.restore();
 
-    // Cota de distancia a la pared frontal
-    this.drawTextWithHalo(
-      `${mon.y.toFixed(2)} m`,
-      mx,
-      my - boxH / 2 - 7,
-      '#4e4d48',
-      `500 9.5px ${FONT_MONO}`,
-      'center'
-    );
+    this.drawTextWithHalo(`${mon.y.toFixed(2)} m`, mx, my - boxH / 2 - 7, '#444444', `9.5px ${FONT_MONO}`);
   }
 
   drawListener(listener, isHighlighted) {
@@ -717,21 +658,19 @@ export class StudioCanvasRenderer {
     ctx.translate(lx, ly);
 
     if (isHighlighted) {
-      ctx.strokeStyle = 'rgba(30, 107, 69, 0.35)';
+      ctx.strokeStyle = 'rgba(27, 107, 66, 0.38)';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(0, 0, r + 5, 0, Math.PI * 2);
       ctx.stroke();
     }
 
-    // Orejas
     const earW = Math.max(3, r * 0.24);
     const earH = r * 0.56;
-    ctx.fillStyle = '#1e6b45';
+    ctx.fillStyle = '#1b6b42';
     ctx.fillRect(-r - earW * 0.55, -earH / 2, earW, earH);
     ctx.fillRect(r - earW * 0.45, -earH / 2, earW, earH);
 
-    // Nariz (orientación hacia pared frontal)
     ctx.beginPath();
     ctx.moveTo(-r * 0.24, -r + 0.5);
     ctx.lineTo(0, -r * 1.38);
@@ -739,17 +678,15 @@ export class StudioCanvasRenderer {
     ctx.closePath();
     ctx.fill();
 
-    // Cabeza
     ctx.fillStyle = '#eef6f1';
-    ctx.strokeStyle = '#1e6b45';
+    ctx.strokeStyle = '#1b6b42';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    // Cruz central mínima
-    ctx.strokeStyle = '#1e6b45';
+    ctx.strokeStyle = '#1b6b42';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(-3.5, 0); ctx.lineTo(3.5, 0);
@@ -763,8 +700,8 @@ export class StudioCanvasRenderer {
       `y = ${listener.y.toFixed(2)} m (${pct}%)`,
       lx,
       ly + r + 15,
-      '#1e6b45',
-      `500 10px ${FONT_MONO}`,
+      '#1b6b42',
+      `10px ${FONT_MONO}`,
       'center'
     );
   }

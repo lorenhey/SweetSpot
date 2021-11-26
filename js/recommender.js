@@ -1,6 +1,5 @@
 /**
- * SweetSpot — Evaluación geométrica y propuestas de ajuste físico paso a paso
- * Regla de trabajo: proponer una sola variable por iteración y contrastar en sala.
+ * SweetSpot - Evaluación geométrica y propuestas de ajuste paso a paso
  */
 
 import { SPEED_OF_SOUND, calculateSBIRInterferences } from './acoustics.js';
@@ -23,37 +22,26 @@ export class AcousticRecommender {
     if (Math.abs(ratioTri - 1.0) <= 0.05) {
       diagnostics.push({
         code: 'triangle_ok',
-        category: 'Geometría estéreo',
-        title: 'Triángulo equilátero (~60°)',
-        severity: 'success',
-        message: `Separación entre monitores (${distMM.toFixed(2)} m) acorde a la distancia al oyente (${avgDistML.toFixed(2)} m).`,
+        category: 'Triángulo estéreo',
+        severity: 'normal',
+        message: `Base ${distMM.toFixed(2)} m, distancia al oyente ${avgDistML.toFixed(2)} m (aprox. equilátero de 60°).`,
         action: null
       });
     } else if (ratioTri < 0.90) {
       diagnostics.push({
         code: 'triangle_narrow',
-        category: 'Geometría estéreo',
-        title: 'Base estéreo angosta',
+        category: 'Triángulo estéreo',
         severity: 'warning',
-        message: `Los monitores están a ${distMM.toFixed(2)} m entre sí frente a ${avgDistML.toFixed(2)} m hasta el oyente; la escena queda cerrada.`,
-        action: {
-          label: 'Separar monitores',
-          type: 'spread_monitors',
-          delta: 0.10
-        }
+        message: `Base ${distMM.toFixed(2)} m frente a ${avgDistML.toFixed(2)} m hasta el oyente (escena cerrada).`,
+        action: { label: 'Separar monitores', type: 'spread_monitors', delta: 0.10 }
       });
     } else {
       diagnostics.push({
         code: 'triangle_wide',
-        category: 'Geometría estéreo',
-        title: 'Base estéreo abierta',
+        category: 'Triángulo estéreo',
         severity: 'warning',
-        message: `Los monitores están a ${distMM.toFixed(2)} m frente a ${avgDistML.toFixed(2)} m hasta el oyente; suele perderse definición en el centro fantasma.`,
-        action: {
-          label: 'Acercar monitores',
-          type: 'narrow_monitors',
-          delta: -0.10
-        }
+        message: `Base ${distMM.toFixed(2)} m frente a ${avgDistML.toFixed(2)} m hasta el oyente (abierto; puede aflojar el centro).`,
+        action: { label: 'Acercar monitores', type: 'narrow_monitors', delta: -0.10 }
       });
     }
 
@@ -67,44 +55,33 @@ export class AcousticRecommender {
       const f1 = (SPEED_OF_SOUND / (2 * room.L)).toFixed(1);
       diagnostics.push({
         code: 'center_node',
-        category: 'Eje longitudinal (Y)',
-        title: 'Oyente en el nodo central (50% L)',
+        category: 'Posición en Y',
         severity: 'danger',
-        message: `Posición en ${listener.y.toFixed(2)} m de ${room.L.toFixed(2)} m. En el centro de la sala se cancelan los modos axiales impares (fundamental ~${f1} Hz); la ecualización no recupera ese pozo.`,
-        action: {
-          label: 'Mover oyente al 38%',
-          type: 'set_listener_y',
-          targetY: Math.round(room.L * 0.38 * 100) / 100
-        }
+        message: `y = ${listener.y.toFixed(2)} m (${(ratioY * 100).toFixed(1)}% de L): sobre el nodo central del 50%, donde caen los modos axiales impares (~${f1} Hz).`,
+        action: { label: 'Mover oyente al 38%', type: 'set_listener_y', targetY: Math.round(room.L * 0.38 * 100) / 100 }
       });
     } else if (is38Percent) {
       diagnostics.push({
         code: 'y_38_ok',
-        category: 'Eje longitudinal (Y)',
-        title: `Referencia longitudinal (${(ratioY * 100).toFixed(1)}% L)`,
-        severity: 'success',
-        message: `Ubicado en y = ${listener.y.toFixed(2)} m, fuera del nodo central del 50% y de los planos de cuartos de onda. Buen punto de partida para medir.`,
+        category: 'Posición en Y',
+        severity: 'normal',
+        message: `y = ${listener.y.toFixed(2)} m (${(ratioY * 100).toFixed(1)}% de L), alejado del nodo del 50% y de los cuartos.`,
         action: null
       });
     } else if (isQuarterNode) {
       diagnostics.push({
         code: 'quarter_node',
-        category: 'Eje longitudinal (Y)',
-        title: 'Cerca de nodo de 2.º orden (25% / 75% L)',
+        category: 'Posición en Y',
         severity: 'warning',
-        message: `En y = ${listener.y.toFixed(2)} m suele aparecer una cancelación cerca del segundo armónico longitudinal (~${(SPEED_OF_SOUND / room.L).toFixed(1)} Hz).`,
-        action: {
-          label: 'Acercar al 38%',
-          type: 'move_listener_to_38'
-        }
+        message: `y = ${listener.y.toFixed(2)} m (${(ratioY * 100).toFixed(1)}% de L), cerca del nodo de 2.º orden (~${(SPEED_OF_SOUND / room.L).toFixed(1)} Hz).`,
+        action: { label: 'Acercar al 38%', type: 'move_listener_to_38' }
       });
     } else {
       diagnostics.push({
         code: 'y_neutral',
-        category: 'Eje longitudinal (Y)',
-        title: `Oyente al ${(ratioY * 100).toFixed(1)}% del largo`,
-        severity: 'info',
-        message: `Posición utilizable; como referencia inicial suele probarse alrededor del 38% (${(room.L * 0.38).toFixed(2)} m) y luego ajustar según medición.`,
+        category: 'Posición en Y',
+        severity: 'normal',
+        message: `y = ${listener.y.toFixed(2)} m (${(ratioY * 100).toFixed(1)}% de L; referencia inicial 38% = ${(room.L * 0.38).toFixed(2)} m).`,
         action: null
       });
     }
@@ -115,28 +92,22 @@ export class AcousticRecommender {
     if (diffX > 0.08) {
       diagnostics.push({
         code: 'lateral_offset',
-        category: 'Simetría lateral (X)',
-        title: `Oyente desplazado ${(diffX * 100).toFixed(0)} cm del eje`,
+        category: 'Simetría en X',
         severity: 'warning',
-        message: `Respecto al centro de la sala (${midX.toFixed(2)} m). Las primeras reflexiones laterales llegan asimétricas entre izquierda y derecha.`,
-        action: {
-          label: 'Centrar en el eje X',
-          type: 'center_listener_x',
-          targetX: midX
-        }
+        message: `x = ${listener.x.toFixed(2)} m (corrido ${(diffX * 100).toFixed(0)} cm respecto al eje ${midX.toFixed(2)} m; reflexiones laterales desparejas).`,
+        action: { label: 'Centrar en X', type: 'center_listener_x', targetX: midX }
       });
     } else {
       diagnostics.push({
         code: 'lateral_ok',
-        category: 'Simetría lateral (X)',
-        title: 'Centrado en el eje lateral',
-        severity: 'success',
-        message: `Oyente sobre el eje x = ${midX.toFixed(2)} m, con caminos laterales equivalentes.`,
+        category: 'Simetría en X',
+        severity: 'normal',
+        message: `x = ${listener.x.toFixed(2)} m (centrado sobre el eje longitudinal).`,
         action: null
       });
     }
 
-    // 4. SBIR pared frontal (usa el cálculo 3D de fuente imagen para coincidir con la tabla)
+    // 4. SBIR pared frontal
     const dFwLeft = leftMon.y;
     const sbirLeft = calculateSBIRInterferences(leftMon, listener, room);
     const frontBoundary = sbirLeft.boundaries.find((b) => b.id === 'front');
@@ -146,31 +117,24 @@ export class AcousticRecommender {
       diagnostics.push({
         code: 'sbir_front_danger',
         category: 'SBIR pared frontal',
-        title: `Cancelación frontal en ${fNullFw} Hz`,
         severity: 'danger',
-        message: `Monitores a ${dFwLeft.toFixed(2)} m de la pared frontal. El primer nulo cae en la franja crítica de graves-medios, difícil de absorber sin trampas gruesas (> 25 cm).`,
-        action: {
-          label: 'Acercar monitores (< 25 cm)',
-          type: 'push_monitors_front',
-          targetY: 0.22
-        }
+        message: `Monitores a ${dFwLeft.toFixed(2)} m → 1.º nulo en ${fNullFw} Hz (zona difícil de absorber sin trampas gruesas; suele convenir < 0.25 m o > 1.3 m).`,
+        action: { label: 'Acercar monitores (< 25 cm)', type: 'push_monitors_front', targetY: 0.22 }
       });
     } else if (dFwLeft < 0.35) {
       diagnostics.push({
         code: 'sbir_front_near',
         category: 'SBIR pared frontal',
-        title: `Montaje cercano a pared (${dFwLeft.toFixed(2)} m)`,
-        severity: 'success',
-        message: `El primer nulo sube a ${fNullFw} Hz, donde absorción porosa convencional (8–10 cm) es efectiva. Compensar el refuerzo de graves con el filtro de frontera del monitor.`,
+        severity: 'normal',
+        message: `Monitores a ${dFwLeft.toFixed(2)} m → 1.º nulo en ${fNullFw} Hz (absorbible con paneles de 8 a 10 cm; compensar refuerzo de graves en el monitor).`,
         action: null
       });
     } else {
       diagnostics.push({
         code: 'sbir_front_far',
         category: 'SBIR pared frontal',
-        title: `Monitores alejados (${dFwLeft.toFixed(2)} m)`,
-        severity: 'info',
-        message: `Primer nulo frontal estimado en ${fNullFw} Hz; comprobar en medición real si coincide con algún modo de la sala.`,
+        severity: 'normal',
+        message: `Monitores a ${dFwLeft.toFixed(2)} m → 1.º nulo estimado en ${fNullFw} Hz.`,
         action: null
       });
     }
@@ -181,48 +145,44 @@ export class AcousticRecommender {
   proposeNextExperiment(room, listener, leftMon, rightMon) {
     const diagnostics = this.evaluateSetup(room, listener, leftMon, rightMon);
 
-    // Prioridad 1: salir del nodo central del 50%
     const centerDanger = diagnostics.find((d) => d.code === 'center_node');
     if (centerDanger && centerDanger.action) {
       const targetY = Math.round(room.L * 0.38 * 100) / 100;
       const deltaCm = (targetY - listener.y) * 100;
       return {
-        actionName: 'Desplazar oyente hacia el 38% del largo',
+        actionName: 'Mover el oyente al 38% del largo',
         variable: 'listener.y',
         deltaText: `${deltaCm > 0 ? '+' : ''}${deltaCm.toFixed(0)} cm`,
         newConfig: { listenerY: targetY },
-        reason: 'Salir del plano nodal del 50% donde se cancelan los modos axiales longitudinales impares.'
+        reason: 'Salir del plano del 50%, donde se cancelan los modos axiales impares en el eje longitudinal.'
       };
     }
 
-    // Prioridad 2: centrar eje lateral
     const centerOff = diagnostics.find((d) => d.code === 'lateral_offset');
     if (centerOff && centerOff.action) {
       const targetX = Math.round((room.W / 2) * 100) / 100;
       const deltaCm = (targetX - listener.x) * 100;
       return {
-        actionName: 'Centrar oyente en el eje lateral',
+        actionName: 'Centrar el oyente en X',
         variable: 'listener.x',
         deltaText: `${deltaCm > 0 ? '+' : ''}${deltaCm.toFixed(0)} cm`,
         newConfig: { listenerX: targetX },
-        reason: 'Igualar la distancia a paredes laterales para reducir asimetría entre canal izquierdo y derecho.'
+        reason: 'Igualar la distancia a ambas paredes laterales para reducir asimetría entre L y R.'
       };
     }
 
-    // Prioridad 3: SBIR frontal crítico
     const sbirDanger = diagnostics.find((d) => d.code === 'sbir_front_danger');
     if (sbirDanger && sbirDanger.action) {
       const deltaCm = (0.22 - leftMon.y) * 100;
       return {
-        actionName: 'Acercar monitores a la pared frontal (0,22 m)',
+        actionName: 'Acercar los monitores a la pared frontal (0,22 m)',
         variable: 'monitors.y',
         deltaText: `${deltaCm.toFixed(0)} cm`,
         newConfig: { monitorsY: 0.22 },
-        reason: 'Subir el primer nulo SBIR por encima de ~350 Hz para poder amortiguarlo con paneles porosos finos.'
+        reason: 'Empujar el 1.º nulo SBIR por encima de 340 Hz para que un panel poroso de 8 a 10 cm alcance a amortiguarlo.'
       };
     }
 
-    // Prioridad 4: triángulo equilátero
     const distMM = Math.hypot(rightMon.x - leftMon.x, rightMon.y - leftMon.y);
     const distML = Math.hypot(listener.x - leftMon.x, listener.y - leftMon.y);
     if (Math.abs(distMM - distML) > 0.08) {
@@ -232,22 +192,21 @@ export class AcousticRecommender {
       const deltaCm = ((targetHalfWidth * 2) - distMM) * 100;
 
       return {
-        actionName: distMM < distML ? 'Separar monitores hacia triángulo de 60°' : 'Acercar monitores hacia triángulo de 60°',
+        actionName: distMM < distML ? 'Abrir monitores hacia triángulo de 60°' : 'Cerrar monitores hacia triángulo de 60°',
         variable: 'monitors.x',
         deltaText: `${deltaCm > 0 ? '+' : ''}${deltaCm.toFixed(0)} cm`,
         newConfig: { leftMonX: newLeftX, rightMonX: newRightX },
-        reason: 'Igualar la base entre monitores con la distancia de escucha para estabilizar el centro fantasma.'
+        reason: 'Igualar la separación entre monitores con la distancia hasta la posición de escucha.'
       };
     }
 
-    // Ajuste fino exploratorio
     const nextY = Math.max(0.4, Math.round((listener.y - 0.05) * 100) / 100);
     return {
-      actionName: 'Prueba de sensibilidad fina del oyente (-5 cm en Y)',
+      actionName: 'Corrimiento fino del oyente (-5 cm en Y)',
       variable: 'listener.y',
       deltaText: '-5 cm',
       newConfig: { listenerY: nextY },
-      reason: 'La geometría general es razonable; evaluar en medición real cuán estable es la respuesta ante un corrimiento chico de la cabeza.'
+      reason: 'La geometría general está en orden; conviene verificar en sala real cuánto varía la curva al mover la cabeza pocos centímetros.'
     };
   }
 

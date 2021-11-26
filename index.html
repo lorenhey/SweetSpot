@@ -3,491 +3,420 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SweetSpot — Posicionamiento físico de monitores y acústica de sala</title>
-  <meta name="description" content="Herramienta interactiva para analizar geometría de sala, modos propios, cancelaciones SBIR y primeras reflexiones antes de medir con micrófono.">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Crect x='2' y='2.5' width='4' height='5' fill='none' stroke='%23191918' stroke-width='1.5'/%3E%3Crect x='14' y='2.5' width='4' height='5' fill='none' stroke='%23191918' stroke-width='1.5'/%3E%3Ccircle cx='10' cy='15.5' r='2.3' fill='none' stroke='%23191918' stroke-width='1.5'/%3E%3C/svg%3E">
+  <title>SweetSpot - Posicionamiento de monitores y acústica de sala</title>
+  <meta name="description" content="Calculadora y plano 2D de modos propios, SBIR y primeras reflexiones para ubicar monitores de estudio y posición de escucha antes de medir con micrófono.">
 
-  <!-- Tipografía técnica (con fallback robusto al sistema) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Serif:ital,wght@0,500;0,600;1,400&display=swap">
-
-  <!-- Estilos -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23183a61'/%3E%3Ccircle cx='8' cy='11' r='2' fill='%23fff'/%3E%3Crect x='3' y='3' width='3' height='3' fill='%23fff'/%3E%3Crect x='10' y='3' width='3' height='3' fill='%23fff'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/style.css">
 
-  <!-- KaTeX para fórmulas -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
 </head>
 <body>
 
-  <!-- Cabecera editorial -->
-  <header class="site-header">
-    <div class="header-inner">
-      <div class="brand">
-        <a href="#simulador" class="brand-name" id="brand-home-link">
-          <svg class="brand-mark" viewBox="0 0 20 20" aria-hidden="true">
-            <rect x="2" y="2.5" width="4" height="5" fill="none" stroke="currentColor" stroke-width="1.4"/>
-            <rect x="14" y="2.5" width="4" height="5" fill="none" stroke="currentColor" stroke-width="1.4"/>
-            <line x1="6" y1="6.5" x2="10" y2="15.5" stroke="currentColor" stroke-width="1" stroke-dasharray="1.5 1.5"/>
-            <line x1="14" y1="6.5" x2="10" y2="15.5" stroke="currentColor" stroke-width="1" stroke-dasharray="1.5 1.5"/>
-            <circle cx="10" cy="15.5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/>
-          </svg>
-          <span>SweetSpot</span>
-        </a>
-        <span class="brand-tagline">Posicionamiento físico de monitores antes que ecualización</span>
-      </div>
-
-      <div class="header-controls">
-        <label class="preset-label" for="preset-select">Sala de ejemplo</label>
-        <select class="select-control" id="preset-select">
-          <option value="home-studio">Home studio (4,80 × 3,60 × 2,50 m)</option>
-          <option value="pro-control">Sala de control (6,20 × 4,80 × 2,90 m)</option>
-          <option value="mastering-bolt">Proporción Sepmeyer (7,00 × 4,80 × 3,00 m)</option>
-          <option value="cubic-worst">Sala cúbica (3,50 × 3,50 × 3,50 m)</option>
-        </select>
-
-        <div class="export-group" role="group" aria-label="Exportar datos">
-          <button class="btn-inline" id="btn-export-json" type="button" title="Descargar geometría e historial en JSON">JSON</button>
-          <button class="btn-inline" id="btn-export-csv" type="button" title="Descargar curva estimada en CSV">CSV</button>
-          <button class="btn-inline" id="btn-export-png" type="button" title="Descargar planta 2D como PNG">PNG</button>
-        </div>
-
-        <a class="repo-link" href="https://github.com/lorenhey/SweetSpot" target="_blank" rel="noopener">GitHub</a>
-      </div>
-    </div>
-
-    <nav class="site-nav" aria-label="Secciones">
-      <div class="nav-inner">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a href="#simulador" class="site-title" id="brand-home-link">SweetSpot</a>
+      <nav class="topnav" aria-label="Navegación">
         <button class="nav-tab-btn active" type="button" data-target="tab-simulador">Simulador</button>
         <button class="nav-tab-btn" type="button" data-target="tab-experimentos">Experimentos</button>
         <button class="nav-tab-btn" type="button" data-target="tab-teoria">Fundamentos</button>
-        <button class="nav-tab-btn" type="button" data-target="tab-python">Python y CLI</button>
-      </div>
-    </nav>
+        <button class="nav-tab-btn" type="button" data-target="tab-python">Python / CLI</button>
+        <a class="nav-ext" href="https://github.com/lorenhey/SweetSpot" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
   </header>
 
-  <main class="main-content">
+  <main class="page">
 
     <!-- PESTAÑA 1: SIMULADOR -->
     <section class="tab-pane active" id="tab-simulador" aria-label="Simulador de sala">
 
-      <!-- Banda compacta de parámetros derivados -->
-      <div class="metrics-strip" aria-label="Resumen acústico de la sala">
-        <div class="metric-cell">
-          <span class="metric-label">Volumen</span>
-          <span class="metric-value" id="metric-volume">43.2 m³</span>
-        </div>
-        <div class="metric-cell">
-          <span class="metric-label">Transición de Schroeder</span>
-          <span class="metric-value" id="badge-schroeder">fs = --- Hz</span>
-        </div>
-        <div class="metric-cell">
-          <span class="metric-label">Proporciones (Bolt)</span>
-          <span class="metric-value" id="badge-bolt">Evaluando</span>
-        </div>
-        <div class="metric-cell">
-          <span class="metric-label">Densidad modal (Bonello)</span>
-          <span class="metric-value" id="badge-bonello">Evaluando</span>
-        </div>
-        <div class="metric-cell">
-          <span class="metric-label">SBIR pared frontal</span>
-          <span class="metric-value" id="badge-sbir-front">--- Hz</span>
-        </div>
+      <div class="tool-intro">
+        <h1>Posicionamiento de monitores en sala rectangular</h1>
+        <p>
+          Arrastrá los monitores o el oyente en el plano, o editá las medidas a la izquierda. El cálculo sirve para explorar geometrías y plantear qué probar primero; en una sala real la decisión final siempre sale de medir con micrófono.
+        </p>
       </div>
 
-      <div class="workbench">
+      <div class="tool-grid">
 
-        <!-- Columna izquierda: Parámetros físicos -->
-        <aside class="inspector-col" aria-label="Parámetros de sala y ubicación">
+        <!-- Controles sin cajas flotantes -->
+        <aside class="controls-pane" aria-label="Parámetros">
 
-          <div class="inspector-section">
-            <h2 class="section-heading">Dimensiones de sala</h2>
+          <fieldset class="ctrl-group">
+            <legend>Sala</legend>
 
-            <div class="control-group">
-              <div class="control-label">
-                <label for="input-room-l">Largo L <span class="label-hint">(frontal–trasera)</span></label>
-                <span class="unit-tag">m</span>
-              </div>
-              <div class="slider-row">
-                <input type="range" id="slider-room-l" min="2.5" max="12.0" step="0.05" value="4.80" aria-label="Largo de sala">
-                <input type="number" id="input-room-l" class="number-input" min="2.5" max="12.0" step="0.05" value="4.80">
-              </div>
+            <div class="field-row field-stack">
+              <label for="preset-select">Ejemplo rápido</label>
+              <select id="preset-select">
+                <option value="home-studio">Home studio (4,80 × 3,60 × 2,50 m)</option>
+                <option value="pro-control">Sala de control (6,20 × 4,80 × 2,90 m)</option>
+                <option value="mastering-bolt">Sepmeyer (7,00 × 4,80 × 3,00 m)</option>
+                <option value="cubic-worst">Cúbica (3,50 × 3,50 × 3,50 m)</option>
+              </select>
             </div>
 
-            <div class="control-group">
-              <div class="control-label">
-                <label for="input-room-w">Ancho W <span class="label-hint">(laterales)</span></label>
-                <span class="unit-tag">m</span>
+            <div class="dim-control">
+              <div class="dim-head">
+                <label for="input-room-l">Largo L</label>
+                <input type="number" id="input-room-l" class="num-in" min="2.5" max="12.0" step="0.05" value="4.80">
+                <span class="unit">m</span>
               </div>
-              <div class="slider-row">
-                <input type="range" id="slider-room-w" min="2.0" max="9.0" step="0.05" value="3.60" aria-label="Ancho de sala">
-                <input type="number" id="input-room-w" class="number-input" min="2.0" max="9.0" step="0.05" value="3.60">
-              </div>
+              <input type="range" id="slider-room-l" min="2.5" max="12.0" step="0.05" value="4.80" aria-label="Largo de sala">
             </div>
 
-            <div class="control-group">
-              <div class="control-label">
-                <label for="input-room-h">Alto H <span class="label-hint">(piso–techo)</span></label>
-                <span class="unit-tag">m</span>
+            <div class="dim-control">
+              <div class="dim-head">
+                <label for="input-room-w">Ancho W</label>
+                <input type="number" id="input-room-w" class="num-in" min="2.0" max="9.0" step="0.05" value="3.60">
+                <span class="unit">m</span>
               </div>
-              <div class="slider-row">
-                <input type="range" id="slider-room-h" min="2.0" max="5.0" step="0.05" value="2.50" aria-label="Alto de sala">
-                <input type="number" id="input-room-h" class="number-input" min="2.0" max="5.0" step="0.05" value="2.50">
-              </div>
+              <input type="range" id="slider-room-w" min="2.0" max="9.0" step="0.05" value="3.60" aria-label="Ancho de sala">
             </div>
-          </div>
 
-          <div class="inspector-section">
-            <h2 class="section-heading">Oyente</h2>
-            <div class="coord-grid">
-              <div class="coord-field">
-                <label for="input-listener-y">Y frontal <span class="unit-inline">(m)</span></label>
-                <input type="number" id="input-listener-y" class="number-input full" min="0.2" max="12" step="0.02" value="1.82">
+            <div class="dim-control">
+              <div class="dim-head">
+                <label for="input-room-h">Alto H</label>
+                <input type="number" id="input-room-h" class="num-in" min="2.0" max="5.0" step="0.05" value="2.50">
+                <span class="unit">m</span>
               </div>
-              <div class="coord-field">
-                <label for="input-listener-x">X izq. <span class="unit-inline">(m)</span></label>
-                <input type="number" id="input-listener-x" class="number-input full" min="0.2" max="9" step="0.02" value="1.80">
-              </div>
-              <div class="coord-field">
-                <label for="input-listener-z">Z oídos <span class="unit-inline">(m)</span></label>
-                <input type="number" id="input-listener-z" class="number-input full" min="0.5" max="2.5" step="0.05" value="1.20">
-              </div>
+              <input type="range" id="slider-room-h" min="2.0" max="5.0" step="0.05" value="2.50" aria-label="Alto de sala">
             </div>
-          </div>
+          </fieldset>
 
-          <div class="inspector-section">
-            <h2 class="section-heading">Monitores L / R</h2>
-            <div class="coord-grid coord-grid-2">
-              <div class="coord-field">
-                <label for="input-mon-left-y">Y frontal <span class="unit-inline">(m)</span></label>
-                <input type="number" id="input-mon-left-y" class="number-input full" min="0.1" max="5" step="0.02" value="0.65">
-              </div>
-              <div class="coord-field">
-                <label for="input-mon-z">Z eje acústico <span class="unit-inline">(m)</span></label>
-                <input type="number" id="input-mon-z" class="number-input full" min="0.4" max="2.5" step="0.05" value="1.20">
-              </div>
-              <div class="coord-field">
-                <label for="input-mon-left-x">X izq. <span class="unit-inline">(m)</span></label>
-                <input type="number" id="input-mon-left-x" class="number-input full" min="0.1" max="9" step="0.02" value="1.05">
-              </div>
-              <div class="coord-field">
-                <label for="input-mon-right-x">X der. <span class="unit-inline">(m)</span></label>
-                <input type="number" id="input-mon-right-x" class="number-input full" min="0.1" max="9" step="0.02" value="2.55">
-              </div>
-              <div class="coord-field coord-span-2">
-                <label for="input-toe-in">Toe-in <span class="unit-inline">(° hacia el oyente)</span></label>
-                <input type="number" id="input-toe-in" class="number-input full" min="-45" max="45" step="1" value="30">
-              </div>
+          <fieldset class="ctrl-group">
+            <legend>Oyente (m)</legend>
+            <div class="triple-fields">
+              <label>
+                <span>Y frontal</span>
+                <input type="number" id="input-listener-y" class="num-in full" min="0.2" max="12" step="0.02" value="1.82">
+              </label>
+              <label>
+                <span>X izq.</span>
+                <input type="number" id="input-listener-x" class="num-in full" min="0.2" max="9" step="0.02" value="1.80">
+              </label>
+              <label>
+                <span>Z oídos</span>
+                <input type="number" id="input-listener-z" class="num-in full" min="0.5" max="2.5" step="0.05" value="1.20">
+              </label>
             </div>
-          </div>
+          </fieldset>
 
-          <div class="inspector-section">
-            <h2 class="section-heading">Capas del plano</h2>
-            <div class="toggle-list">
-              <label class="toggle-item"><input type="checkbox" id="toggle-stereo-link" checked><span>Simetría estéreo vinculada</span></label>
-              <label class="toggle-item"><input type="checkbox" id="toggle-auto-toe-in" checked><span>Toe-in automático hacia oídos</span></label>
-              <label class="toggle-item"><input type="checkbox" id="toggle-triangle" checked><span>Triángulo estéreo y distancias</span></label>
-              <label class="toggle-item"><input type="checkbox" id="toggle-38-rule" checked><span>Referencias 38% y nodo 50%</span></label>
-              <label class="toggle-item"><input type="checkbox" id="toggle-rays" checked><span>Rayos de primera reflexión</span></label>
-              <label class="toggle-item"><input type="checkbox" id="toggle-rfz" checked><span>Puntos de absorción (RFZ)</span></label>
-              <label class="toggle-item"><input type="checkbox" id="toggle-heatmap"><span>Mapa de presión modal 2D</span></label>
+          <fieldset class="ctrl-group">
+            <legend>Monitores L / R</legend>
+            <div class="pair-fields">
+              <label>
+                <span>Y frontal (m)</span>
+                <input type="number" id="input-mon-left-y" class="num-in full" min="0.1" max="5" step="0.02" value="0.65">
+              </label>
+              <label>
+                <span>Z eje (m)</span>
+                <input type="number" id="input-mon-z" class="num-in full" min="0.4" max="2.5" step="0.05" value="1.20">
+              </label>
+              <label>
+                <span>X izq. (m)</span>
+                <input type="number" id="input-mon-left-x" class="num-in full" min="0.1" max="9" step="0.02" value="1.05">
+              </label>
+              <label>
+                <span>X der. (m)</span>
+                <input type="number" id="input-mon-right-x" class="num-in full" min="0.1" max="9" step="0.02" value="2.55">
+              </label>
             </div>
-            <div class="mode-selector-wrap">
+            <div class="field-row inline-toe">
+              <label for="input-toe-in">Toe-in (°)</label>
+              <input type="number" id="input-toe-in" class="num-in" min="-45" max="45" step="1" value="30">
+            </div>
+          </fieldset>
+
+          <fieldset class="ctrl-group">
+            <legend>Mostrar en planta</legend>
+            <div class="check-list">
+              <label><input type="checkbox" id="toggle-stereo-link" checked> Simetría L/R vinculada</label>
+              <label><input type="checkbox" id="toggle-auto-toe-in" checked> Toe-in automático</label>
+              <label><input type="checkbox" id="toggle-triangle" checked> Triángulo estéreo</label>
+              <label><input type="checkbox" id="toggle-38-rule" checked> Líneas 38% y 50%</label>
+              <label><input type="checkbox" id="toggle-rays" checked> Rayos de reflexión</label>
+              <label><input type="checkbox" id="toggle-rfz" checked> Puntos RFZ en muros</label>
+              <label><input type="checkbox" id="toggle-heatmap"> Mapa de presión modal</label>
+            </div>
+            <div class="mode-pick">
               <label class="sr-only" for="select-heatmap-mode">Modo para mapa de presión</label>
-              <select class="select-control full-width" id="select-heatmap-mode"></select>
+              <select id="select-heatmap-mode"></select>
             </div>
+          </fieldset>
+
+          <div class="export-links">
+            Exportar:
+            <button type="button" class="link-btn" id="btn-export-json">JSON</button> ·
+            <button type="button" class="link-btn" id="btn-export-csv">CSV</button> ·
+            <button type="button" class="link-btn" id="btn-export-png">PNG</button>
           </div>
 
         </aside>
 
-        <!-- Columna central: Planta 2D y gráfico de frecuencia -->
-        <div class="plots-col">
+        <!-- Columna principal: plano, lectura directa y gráfico -->
+        <div class="stage-pane">
 
-          <figure class="plot-block">
-            <figcaption class="plot-header">
-              <span class="plot-title">Planta de la sala</span>
-              <span class="plot-hint">Arrastrá los monitores o el punto de escucha</span>
-            </figcaption>
-            <div class="canvas-frame">
+          <figure class="figure-wrap">
+            <div class="canvas-box">
               <canvas id="studio-canvas"></canvas>
             </div>
-            <div class="plot-legend">
-              <span class="legend-entry"><i class="swatch swatch-mon"></i>Monitores L/R</span>
-              <span class="legend-entry"><i class="swatch swatch-listener"></i>Oyente</span>
-              <span class="legend-entry"><i class="swatch swatch-line swatch-tri"></i>Triángulo estéreo</span>
-              <span class="legend-entry"><i class="swatch swatch-rfz"></i>Puntos de reflexión (RFZ)</span>
-              <span class="legend-entry"><i class="swatch swatch-node"></i>Zona nodo 50%</span>
-            </div>
+            <figcaption class="fig-caption">
+              Planta de la sala (escala métrica). Arrastrá monitores u oyente con mouse o dedo.
+              <span class="caption-keys">
+                <i class="k-mon"></i> monitores,
+                <i class="k-lis"></i> oyente,
+                <i class="k-rfz"></i> puntos RFZ,
+                <i class="k-nod"></i> nodo 50%.
+              </span>
+            </figcaption>
           </figure>
 
-          <figure class="plot-block">
-            <figcaption class="plot-header">
-              <span class="plot-title">Respuesta estimada en baja frecuencia (20–500 Hz)</span>
-              <div class="chart-toggles">
-                <label class="mini-toggle"><input type="checkbox" id="toggle-curve-sbir" checked><span>SBIR</span></label>
-                <label class="mini-toggle"><input type="checkbox" id="toggle-curve-modal" checked><span>Modos</span></label>
-              </div>
-            </figcaption>
-            <div class="canvas-frame">
+          <!-- Parámetros calculados y lectura geométrica en una sola tabla sobria -->
+          <div class="summary-block">
+            <p class="room-line" id="room-constants-line">
+              Volumen <strong id="metric-volume">43.2 m³</strong> ·
+              Schroeder <strong id="badge-schroeder">fs = 180 Hz</strong> ·
+              Proporciones <strong id="badge-bolt">1 : 1.44 : 1.92</strong> ·
+              Bonello: <strong id="badge-bonello">monótona</strong> ·
+              SBIR frontal: <strong id="badge-sbir-front">144 Hz</strong>
+            </p>
+
+            <table class="facts-table" aria-label="Resumen geométrico">
+              <tbody id="diagnostic-cards"></tbody>
+            </table>
+          </div>
+
+          <figure class="figure-wrap">
+            <div class="chart-bar">
+              <span class="chart-heading">Respuesta estimada en baja frecuencia (20 a 500 Hz)</span>
+              <span class="chart-checks">
+                <label><input type="checkbox" id="toggle-curve-sbir" checked> SBIR</label>
+                <label><input type="checkbox" id="toggle-curve-modal" checked> Modos</label>
+              </span>
+            </div>
+            <div class="canvas-box">
               <canvas id="response-canvas"></canvas>
             </div>
-            <div class="plot-legend">
-              <span class="legend-entry"><i class="swatch swatch-line swatch-total"></i>Combinada (estimación)</span>
-              <span class="legend-entry"><i class="swatch swatch-dash swatch-sbir"></i>SBIR fronteras</span>
-              <span class="legend-entry"><i class="swatch swatch-dash swatch-modal"></i>Acoplamiento modal</span>
-              <span class="legend-entry"><i class="swatch swatch-dash swatch-fs"></i><span>Schroeder (f<sub>s</sub>)</span></span>
-            </div>
-            <p class="model-disclaimer">
-              Modelo analítico de paredes rígidas (modos propios + SBIR de primer orden). Sirve para plantear hipótesis geométricas; la verificación real en sala requiere medición con micrófono.
-            </p>
+            <figcaption class="fig-caption">
+              Trazo negro: combinación estimada. Naranja punteado: SBIR. Azul punteado: acoplamiento modal. Línea vertical: f<sub>s</sub>.
+              Cálculo ideal para paredes rígidas; sirve como hipótesis antes de medir con micrófono.
+            </figcaption>
           </figure>
 
         </div>
 
-        <!-- Columna derecha: Observaciones y tablas -->
-        <aside class="data-col" aria-label="Observaciones y tablas acústicas">
-
-          <div class="data-block">
-            <div class="block-header">
-              <h2 class="section-heading">Observaciones</h2>
-            </div>
-            <div class="diagnostics-list" id="diagnostic-cards"></div>
-          </div>
-
-          <div class="data-block">
-            <div class="block-header">
-              <h2 class="section-heading">Modos propios (&lt; 320 Hz)</h2>
-              <span class="block-meta">Clic para ver mapa 2D</span>
-            </div>
-            <div class="table-scroll">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th class="num">Frec. (Hz)</th>
-                    <th><span class="no-caps">(n<sub>x</sub>, n<sub>y</sub>, n<sub>z</sub>)</span></th>
-                    <th>Tipo</th>
-                    <th class="num">Rel. (dB)</th>
-                  </tr>
-                </thead>
-                <tbody id="modes-table-body"></tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="data-block">
-            <div class="block-header">
-              <h2 class="section-heading">SBIR por superficie</h2>
-              <span class="block-meta">Monitor L · frec. en Hz</span>
-            </div>
-            <div class="table-scroll">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Superficie</th>
-                    <th class="num"><span class="no-caps">d</span> (m)</th>
-                    <th class="num">Nulo</th>
-                    <th class="num">Pico</th>
-                    <th class="num"><span class="no-caps">Δt</span> (ms)</th>
-                  </tr>
-                </thead>
-                <tbody id="sbir-table-body"></tbody>
-              </table>
-            </div>
-          </div>
-
-        </aside>
-
       </div>
-    </section>
 
-    <!-- PESTAÑA 2: ASISTENTE EXPERIMENTAL -->
-    <section class="tab-pane" id="tab-experimentos" aria-label="Experimentos paso a paso">
-      <article class="prose-sheet">
-        <header class="prose-header">
-          <h1>Ajuste físico paso a paso</h1>
-          <p class="prose-lead">
-            En acústica de salas conviene cambiar una sola variable física por vez, medir qué pasó y decidir si conservar o descartar el cambio. Este módulo propone el siguiente movimiento a partir de la geometría cargada en el simulador.
+      <hr class="section-rule">
+
+      <!-- Tablas completas abajo, sin scroll traps que corten filas -->
+      <div class="tables-grid">
+        <div>
+          <div class="table-head-row">
+            <h2>Modos propios (&lt; 320 Hz)</h2>
+            <span class="table-note">Clic en una fila para ver su mapa 2D</span>
+          </div>
+          <table class="plain-table">
+            <thead>
+              <tr>
+                <th class="num">Frec. (Hz)</th>
+                <th>(n<sub>x</sub>, n<sub>y</sub>, n<sub>z</sub>)</th>
+                <th>Tipo</th>
+                <th class="num">Rel. (dB)</th>
+              </tr>
+            </thead>
+            <tbody id="modes-table-body"></tbody>
+          </table>
+          <p class="table-more-wrap">
+            <button type="button" class="link-btn" id="btn-toggle-all-modes" style="display: none;"></button>
           </p>
-        </header>
-
-        <div class="note-box">
-          <h2>Criterio de prioridad</h2>
-          <ol>
-            <li><strong>Posición longitudinal del oyente:</strong> salir del nodo central (50% del largo) donde se cancelan los modos axiales impares, tomando el 38% como referencia inicial.</li>
-            <li><strong>Simetría lateral:</strong> centrar la posición de escucha respecto a las paredes laterales para igualar el tiempo de llegada de las primeras reflexiones.</li>
-            <li><strong>Distancia a la pared frontal (SBIR):</strong> evitar la franja de 0,55 a 1,25 m si no hay tratamiento profundo; acercar los monitores a la pared (&lt; 25 cm) sube el primer nulo por encima de ~340 Hz, donde un panel poroso de 8–10 cm ya trabaja bien.</li>
-            <li><strong>Triángulo estéreo:</strong> igualar la separación entre monitores con la distancia al oyente (60°).</li>
-          </ol>
         </div>
 
-        <div class="experiment-actions">
-          <button class="btn-solid" id="btn-propose-experiment" type="button">Proponer siguiente ajuste</button>
-          <button class="btn-outline-ok" id="btn-apply-experiment" type="button" style="display: none;">Aplicar en el plano</button>
+        <div>
+          <div class="table-head-row">
+            <h2>SBIR por superficie (monitor L)</h2>
+            <span class="table-note">Frecuencias en Hz</span>
+          </div>
+          <table class="plain-table">
+            <thead>
+              <tr>
+                <th>Superficie</th>
+                <th class="num">d (m)</th>
+                <th class="num">1.º nulo</th>
+                <th class="num">1.º pico</th>
+                <th class="num">Δt (ms)</th>
+              </tr>
+            </thead>
+            <tbody id="sbir-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- PESTAÑA 2: EXPERIMENTOS -->
+    <section class="tab-pane" id="tab-experimentos" aria-label="Experimentos paso a paso">
+      <div class="text-column">
+        <h1>Ajuste paso a paso</h1>
+        <p>
+          Cuando movés monitores y silla al mismo tiempo nunca sabés qué produjo la mejora ni qué empeoró en otra frecuencia. La regla acá es cambiar una sola variable por vez, medir, comparar y decidir si dejás el cambio o volvés atrás.
+        </p>
+        <p>
+          A partir de la geometría cargada en el simulador, el orden que sigue este asistente es: primero salir del nodo central del 50% en el eje longitudinal, después centrar el oyente en el eje lateral, luego sacar los monitores de la franja crítica de SBIR frontal (entre 0,55 y 1,25 m) y por último acercar la base al triángulo equilátero de 60°.
+        </p>
+
+        <div class="action-row">
+          <button class="btn-main" id="btn-propose-experiment" type="button">Proponer siguiente cambio</button>
+          <button class="btn-apply" id="btn-apply-experiment" type="button" style="display: none;">Aplicar en el plano</button>
         </div>
 
         <div id="experiment-proposal-card"></div>
 
-        <section class="history-section">
-          <h2>Registro de ajustes aplicados</h2>
-          <div class="table-frame">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Hora</th>
-                  <th>Ajuste</th>
-                  <th>Variable</th>
-                  <th class="num">Delta</th>
-                  <th>Coordenadas resultantes</th>
-                </tr>
-              </thead>
-              <tbody id="experiment-history-table">
-                <tr>
-                  <td colspan="6" class="empty-cell">
-                    Todavía no hay ajustes registrados. Usá «Proponer siguiente ajuste» para evaluar la configuración actual.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </article>
+        <h2>Historial de cambios aplicados</h2>
+        <div class="table-overflow">
+          <table class="plain-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Hora</th>
+                <th>Cambio</th>
+                <th>Variable</th>
+                <th class="num">Delta</th>
+                <th>Coordenadas resultantes</th>
+              </tr>
+            </thead>
+            <tbody id="experiment-history-table">
+              <tr>
+                <td colspan="6" class="muted-cell">Todavía no aplicaste ningún cambio.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
-    <!-- PESTAÑA 3: FUNDAMENTOS ACÚSTICOS -->
+    <!-- PESTAÑA 3: FUNDAMENTOS -->
     <section class="tab-pane" id="tab-teoria" aria-label="Fundamentos acústicos">
-      <article class="prose-sheet">
-        <header class="prose-header">
-          <h1>Fundamentos de acústica en salas pequeñas</h1>
-          <p class="prose-lead">
-            En salas de dimensiones domésticas o de control, las longitudes de onda por debajo de ~250–300 Hz son comparables al tamaño del recinto. En esa banda el campo no es difuso: está dominado por ondas estacionarias y cancelaciones por interferencia con las paredes.
-          </p>
-        </header>
+      <article class="text-column">
+        <h1>Fundamentos de acústica en salas pequeñas</h1>
+        <p>
+          En habitaciones chicas o medianas, las longitudes de onda por debajo de 250 o 300 Hz son del mismo orden que las paredes. En esa banda el campo sonoro no es difuso: la respuesta cambia varios decibeles con mover la cabeza quince centímetros por efecto de ondas estacionarias e interferencias con las superficies cercanas.
+        </p>
 
         <h2>1. Modos propios en un recinto rectangular</h2>
         <p>
-          Para una caja paralelepipédica de largo $L$, ancho $W$ y alto $H$ con paredes rígidas ideales, las frecuencias propias se obtienen a partir de la ecuación de Rayleigh:
+          Si se idealiza la sala como una caja rígida de largo $L$, ancho $W$ y alto $H$, las frecuencias resonantes salen de la ecuación de Rayleigh:
         </p>
-        <div class="math-block">
+        <p class="eq-line">
           $$f(n_x, n_y, n_z) = \frac{c}{2} \sqrt{\left(\frac{n_x}{W}\right)^2 + \left(\frac{n_y}{L}\right)^2 + \left(\frac{n_z}{H}\right)^2}$$
-        </div>
-        <p>
-          Con $c = 343\text{ m/s}$ (aire a 20 °C) y enteros no negativos $(n_x, n_y, n_z)$ no todos nulos:
         </p>
-        <ul>
-          <li><strong>Modos axiales:</strong> un solo índice distinto de cero, por ejemplo $(1, 0, 0)$ o $(0, 2, 0)$. Involucran dos paredes opuestas y concentran la mayor energía modal ($0\text{ dB}$ de referencia).</li>
-          <li><strong>Modos tangenciales:</strong> dos índices distintos de cero, por ejemplo $(1, 1, 0)$. Recorren cuatro superficies y aportan del orden de $-3\text{ dB}$ respecto a un axial equivalente.</li>
-          <li><strong>Modos oblicuos:</strong> los tres índices distintos de cero, por ejemplo $(1, 1, 1)$. Involucran las seis superficies y caen alrededor de $-6\text{ dB}$ con mayor amortiguamiento.</li>
-        </ul>
-        <p class="aside-note">
-          En salas reales, paredes livianas (placa de yeso, ventanas, puertas) ceden parcialmente en baja frecuencia: las frecuencias medidas pueden desplazarse varios Hz respecto al cálculo rígido ideal.
+        <p>
+          Acá $c = 343\text{ m/s}$ es la velocidad del sonido a 20 °C y $(n_x, n_y, n_z)$ son enteros no negativos no todos nulos. Según cuántas paredes intervienen en la onda estacionaria, los modos se agrupan en tres familias:
+        </p>
+        <table class="plain-table compact-table">
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Índices distintos de cero</th>
+              <th>Superficies</th>
+              <th class="num">Nivel relativo aprox.</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Axial</td>
+              <td class="mono">1 (ej. 1,0,0 o 0,2,0)</td>
+              <td>2 paredes opuestas</td>
+              <td class="num">0 dB</td>
+            </tr>
+            <tr>
+              <td>Tangencial</td>
+              <td class="mono">2 (ej. 1,1,0)</td>
+              <td>4 superficies</td>
+              <td class="num">-3 dB</td>
+            </tr>
+            <tr>
+              <td>Oblicuo</td>
+              <td class="mono">3 (ej. 1,1,1)</td>
+              <td>6 superficies</td>
+              <td class="num">-6 dB</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="small-note">
+          En construcciones reales con placa de yeso, aberturas o muebles pesados las paredes no son perfectamente rígidas; los picos y pozos medidos suelen correrse algunos Hz respecto al valor teórico.
         </p>
 
-        <h2>2. Frecuencia de transición de Schroeder</h2>
+        <h2>2. Frecuencia de Schroeder</h2>
         <p>
-          La frecuencia de Schroeder estima el límite entre el régimen modal discreto y el régimen estadístico donde los modos se superponen:
+          Manfred Schroeder estimó la frecuencia de transición entre el régimen de modos discretos y la zona donde se superponen demasiados modos como para distinguirlos por separado:
         </p>
-        <div class="math-block">
+        <p class="eq-line">
           $$f_s \approx 2000 \sqrt{\frac{T_{60}}{V}}$$
-        </div>
-        <p>
-          donde $V = L \cdot W \cdot H$ es el volumen en $\text{m}^3$ y $T_{60}$ el tiempo de reverberación en segundos (el simulador web asume $T_{60} = 0{,}35\text{ s}$ como valor orientativo hasta medir el decaimiento real).
         </p>
-        <ul>
-          <li><strong>Por debajo de $f_s$:</strong> la respuesta cambia de forma marcada al mover pocos centímetros el micrófono, el asiento o los monitores.</li>
-          <li><strong>Por encima de $f_s$:</strong> la densidad modal es alta y el comportamiento queda mejor descripto por acústica geométrica (primeras reflexiones especulares) y absorción superficial.</li>
-        </ul>
+        <p>
+          donde $V = L \cdot W \cdot H$ es el volumen en $\text{m}^3$ y $T_{60}$ es el tiempo de reverberación en segundos. El simulador web usa $T_{60} = 0{,}35\text{ s}$ como estimación hasta medir la sala real. Por debajo de $f_s$ manda la acústica ondulatoria (ubicación física de fuente y oyente); por encima empiezan a dominar las primeras reflexiones geométricas y la absorción de superficies.
+        </p>
 
         <h2>3. Interferencia con fronteras (SBIR)</h2>
         <p>
-          En graves un monitor irradia de forma prácticamente omnidireccional. Parte de esa energía viaja hacia una pared cercana, se refleja y vuelve al punto de escucha con un retardo respecto al sonido directo. Cuando la diferencia de caminos $\Delta d = d_{\text{refl}} - d_{\text{dir}}$ iguala media longitud de onda ($\lambda / 2$), ambas ondas llegan en contrafase ($180^\circ$) y producen una cancelación:
+          En graves un monitor irradia hacia todos lados. La onda que sale hacia atrás rebota en la pared cercana y vuelve a mezclarse con el sonido directo. Cuando la diferencia de caminos $\Delta d = d_{\text{refl}} - d_{\text{dir}}$ coincide con media longitud de onda ($\lambda / 2$), las dos ondas llegan desfasadas $180^\circ$ y se cancelan:
         </p>
-        <div class="math-block">
+        <p class="eq-line">
           $$f_{\text{nulo}} = \frac{c}{2 \Delta d} \approx \frac{c}{4 d_w}$$
-        </div>
+        </p>
         <p>
-          donde $d_w$ es la distancia perpendicular del centro acústico del monitor a la superficie.
+          donde $d_w$ es la distancia perpendicular desde el centro acústico del monitor hasta la pared.
         </p>
 
-        <div class="note-box note-box-warn">
-          <h3>Por qué la ecualización no corrige un nulo SBIR</h3>
-          <p>
-            Un pozo producido por interferencia destructiva entre el sonido directo y una reflexión no es un sistema de fase mínima:
-          </p>
-          <ul>
-            <li>Tanto la onda directa como la reflejada salen del mismo transductor.</li>
-            <li>Si se aplica un refuerzo de $+12\text{ dB}$ en la frecuencia cancelada, ambas ondas aumentan $+12\text{ dB}$ y siguen llegando en contrafase al punto de escucha.</li>
-            <li>El nulo prácticamente no cambia, pero el amplificador pierde <em>headroom</em> y el woofer aumenta excursión y distorsión armónica (THD).</li>
-          </ul>
-          <p>
-            La corrección efectiva es física: cambiar la distancia a la pared o absorber la reflexión a esa frecuencia.
-          </p>
-        </div>
-
-        <h2>4. Posición longitudinal y referencia del 38%</h2>
+        <h3>Por qué la ecualización no arregla un pozo SBIR</h3>
         <p>
-          A lo largo del eje longitudinal de una sala rectangular, los planos nodales de presión se repiten de forma regular:
-        </p>
-        <ul>
-          <li>En $y = 0{,}50\,L$ todos los modos axiales impares ($n_y = 1, 3, 5\dots$) presentan un mínimo de presión.</li>
-          <li>En $y = 0{,}25\,L$ y $y = 0{,}75\,L$ se anulan los modos pares de orden $n_y = 2, 6\dots$</li>
-          <li>Pegado a las paredes ($y \to 0$ o $y \to L$) todos los modos tienen máximos de presión.</li>
-        </ul>
-        <p>
-          La regla del 38% atribuida a Wes Lachot ($y \approx 0{,}38\,L$ o $0{,}62\,L$) evita coincidir exactamente con esos nodos principales. Es un punto de partida razonable para empezar a medir, no una solución fija: en una sala real conviene barrer posiciones en pasos de 10 a 15 cm y verificar qué curva resulta más pareja y estable alrededor de la cabeza.
+          Una cancelación por reflexión no es un fenómeno de fase mínima. La onda directa y la reflejada salen del mismo parlante: si levantás $+12\text{ dB}$ en el ecualizador a la frecuencia del nulo, suben $+12\text{ dB}$ las dos ondas y en el punto de escucha se siguen anulando casi igual. Lo único que cambia es que el amplificador se queda sin <em>headroom</em> y el woofer aumenta excursión y distorsión. La salida real es física: cambiar la distancia a la pared (por ejemplo acercar el monitor por debajo de 25 cm para llevar el nulo arriba de 340 Hz, donde un panel de 8 a 10 cm absorbe bien) o absorber la reflexión a esa frecuencia.
         </p>
 
-        <h2>5. Primeras reflexiones y zona libre de reflexiones (RFZ)</h2>
+        <h2>4. Posición longitudinal y regla del 38%</h2>
         <p>
-          Las reflexiones especulares que llegan dentro de los primeros $15\text{ a }20\text{ ms}$ respecto al sonido directo interfieren en fase con la señal original (<em>comb filtering</em>) y degradan la localización estéreo. En planta pueden ubicarse geométricamente con el método de la fuente imagen (o en la sala real deslizando un espejo por la pared lateral hasta ver el tweeter desde la silla). Colocar paneles absorbentes de banda ancha (lana de roca o fibra mineral de 7,5 a 10 cm) en esos puntos reduce la coloración en medios y agudos.
+          En el centro exacto del largo ($y = 0{,}50\,L$), todos los modos axiales impares ($n_y = 1, 3, 5\dots$) pasan por un mínimo de presión. En los cuartos ($0{,}25\,L$ y $0{,}75\,L$) se anula el segundo armónico, y pegado a la pared trasera todos los modos se acumulan. La referencia del 38% de Wes Lachot ($0{,}38\,L$ o $0{,}62\,L$) simplemente esquiva esos planos nodales principales. Conviene usarla como punto de arranque y después mover el asiento en pasos de 10 o 15 cm midiendo con micrófono para comprobar que la curva no se derrumbe al mover la cabeza unos centímetros.
+        </p>
+
+        <h2>5. Primeras reflexiones y técnica del espejo</h2>
+        <p>
+          Las reflexiones especulares que llegan dentro de los primeros 15 a 20 ms después del sonido directo producen filtrado peine (<em>comb filtering</em>) y ensucian la imagen estéreo. Los puntos de rebote en paredes laterales se marcan en el plano con el método de la fuente imagen y en la sala se verifican sentándote en tu lugar mientras otra persona desliza un espejo contra la pared hasta que ves reflejado el tweeter. Ahí es donde más rinde colocar paneles de lana mineral o fibra de vidrio de 7,5 a 10 cm.
         </p>
       </article>
     </section>
 
-    <!-- PESTAÑA 4: PYTHON Y CLI -->
+    <!-- PESTAÑA 4: PYTHON / CLI -->
     <section class="tab-pane" id="tab-python" aria-label="Paquete Python y CLI">
-      <article class="prose-sheet">
-        <header class="prose-header">
-          <h1>Paquete Python y CLI (<code>sweetspot</code>)</h1>
-          <p class="prose-lead">
-            Esta página web implementa únicamente el modelo geométrico y analítico para explorar posiciones antes de medir. El repositorio incluye además el paquete Python <code>sweetspot</code> para trabajar con sweeps exponenciales, deconvolución de respuesta al impulso (IR), integración de Schroeder e interfaz de escritorio en PySide6.
-          </p>
-        </header>
+      <article class="text-column">
+        <h1>Paquete Python y línea de comandos</h1>
+        <p>
+          Esta página web resuelve solamente el modelo geométrico y analítico en el navegador. El mismo repositorio trae el paquete <code>sweetspot</code> en Python 3.12 para generar sweeps exponenciales, deconvolucionar la respuesta al impulso (IR), calcular integración de Schroeder y usar la interfaz de escritorio en PySide6.
+        </p>
 
-        <h2>Instalación local</h2>
+        <h2>Instalación</h2>
         <pre><code>git clone https://github.com/lorenhey/SweetSpot.git
 cd SweetSpot
 
-# Con uv
 uv sync
-
-# O con entorno virtual estándar
+# o con venv estándar:
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -e .</code></pre>
 
-        <h2>Interfaz de escritorio y línea de comandos</h2>
+        <h2>Comandos disponibles</h2>
         <p>
-          Comandos disponibles en la versión actual del paquete (<code>src/sweetspot/cli/main.py</code> y <code>src/sweetspot/gui/app.py</code>):
+          Definidos en <code>src/sweetspot/cli/main.py</code> y <code>src/sweetspot/gui/app.py</code>:
         </p>
-        <pre><code># Abrir interfaz gráfica PySide6
-uv run sweetspot-gui
-
-# Listar interfaces de audio detectadas por sounddevice
+        <pre><code>uv run sweetspot-gui
 uv run sweetspot devices
-
-# Ejecutar demo iterativo con sala sintética (sin hardware)
 uv run sweetspot demo
-
-# Ejecutar flujo de medición por canal
 uv run sweetspot measure --device-id 0 --channel left --duration 3.0 --level -12.0</code></pre>
 
-        <h2>Uso desde Python</h2>
-        <p>
-          Funciones principales de DSP y métricas disponibles en <code>sweetspot.dsp</code>:
-        </p>
+        <h2>Ejemplo de uso desde Python</h2>
         <pre><code>from sweetspot.dsp.sweep import (
     generate_exponential_sweep,
     generate_inverse_filter,
@@ -507,19 +436,16 @@ from sweetspot.dsp.room_metrics import (
 
 sr = 48000
 
-# 1. Modos propios teóricos de la sala
 modes = calculate_theoretical_modes(length_m=4.8, width_m=3.6, height_m=2.5, max_freq=300.0)
 for m in modes[:5]:
     print(f"{m.type:10s} ({m.nx}, {m.ny}, {m.nz})  {m.frequency:6.1f} Hz")
 
-# 2. Sweep exponencial, filtro inverso (-3 dB/oct) y deconvolución
 sweep = generate_exponential_sweep(
     20.0, 20000.0, duration_s=3.0, sample_rate=sr, level_dbfs=-12.0
 )
 inv_filter = generate_inverse_filter(sweep, 20.0, 20000.0, duration_s=3.0, sample_rate=sr)
 ir = deconvolve(sweep, inv_filter)
 
-# 3. Enventanado, respuesta en frecuencia y tiempos de reverberación
 peak = find_direct_arrival(ir)
 ir_win = apply_window(ir, peak_idx=peak, sample_rate=sr)
 freqs, mag_db, _ = compute_frequency_response(ir_win, sample_rate=sr)
@@ -527,9 +453,9 @@ mag_smooth = fractional_octave_smoothing(freqs, mag_db, fraction=24)
 
 decay_db = schroeder_integration(ir_win[peak:])
 rt = calculate_rt(decay_db, sample_rate=sr)
-print(rt)  # {'EDT': ..., 'T20': ..., 'T30': ...}</code></pre>
+print(rt)</code></pre>
 
-        <h2>Pruebas automatizadas</h2>
+        <h2>Tests</h2>
         <pre><code>uv run pytest</code></pre>
       </article>
     </section>
@@ -538,8 +464,7 @@ print(rt)  # {'EDT': ..., 'T20': ..., 'T30': ...}</code></pre>
 
   <footer class="site-footer">
     <div class="footer-inner">
-      <span>SweetSpot — proyecto open source de <a href="https://github.com/lorenhey" target="_blank" rel="noopener">Loren</a></span>
-      <span><a href="https://github.com/lorenhey/SweetSpot" target="_blank" rel="noopener">github.com/lorenhey/SweetSpot</a> · Licencia MIT</span>
+      SweetSpot (<a href="https://github.com/lorenhey/SweetSpot" target="_blank" rel="noopener">código fuente en GitHub</a>, licencia MIT) · <a href="https://github.com/lorenhey" target="_blank" rel="noopener">lorenhey</a>
     </div>
   </footer>
 

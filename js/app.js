@@ -1,5 +1,5 @@
 /**
- * SweetSpot — Controlador principal de la interfaz web
+ * SweetSpot - Controlador principal de la interfaz web
  */
 
 import {
@@ -30,16 +30,13 @@ const MODE_LABELS = {
   oblique: 'Oblicuo'
 };
 
-const SEVERITY_LABELS = {
-  success: 'OK',
-  warning: 'Atención',
-  danger: 'Crítico',
-  info: 'Nota'
-};
+const DEFAULT_MODES_LIMIT = 12;
 
 class SweetSpotApp {
   constructor() {
     this.recommender = new AcousticRecommender();
+    this.showAllModes = false;
+    this.lastModes = [];
     this.initDOM();
     this.initCanvasAndChart();
     this.bindEvents();
@@ -85,6 +82,7 @@ class SweetSpotApp {
       badgeSBIRFront: document.getElementById('badge-sbir-front'),
       diagnosticCards: document.getElementById('diagnostic-cards'),
       modesTableBody: document.getElementById('modes-table-body'),
+      btnToggleAllModes: document.getElementById('btn-toggle-all-modes'),
       sbirTableBody: document.getElementById('sbir-table-body'),
 
       btnProposeExperiment: document.getElementById('btn-propose-experiment'),
@@ -275,6 +273,13 @@ class SweetSpotApp {
       });
     }
 
+    if (this.dom.btnToggleAllModes) {
+      this.dom.btnToggleAllModes.addEventListener('click', () => {
+        this.showAllModes = !this.showAllModes;
+        this.populateModesTable(this.lastModes);
+      });
+    }
+
     if (this.dom.btnProposeExperiment) {
       this.dom.btnProposeExperiment.addEventListener('click', () => this.proposeExperiment());
     }
@@ -328,7 +333,6 @@ class SweetSpotApp {
       });
     }
 
-    // Delegación de clic en tabla de modos para activar mapa modal 2D
     if (this.dom.modesTableBody) {
       this.dom.modesTableBody.addEventListener('click', (e) => {
         const row = e.target.closest('tr[data-nx]');
@@ -348,6 +352,7 @@ class SweetSpotApp {
             this.dom.selectHeatmapMode.value = val;
           }
         }
+        document.getElementById('studio-canvas')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       });
     }
   }
@@ -426,17 +431,11 @@ class SweetSpotApp {
     this.recalculateAll();
   }
 
-  mapBadgeStatus(badgeClass) {
-    if (badgeClass === 'badge-success') return 'status-ok';
-    if (badgeClass === 'badge-warning') return 'status-warn';
-    if (badgeClass === 'badge-danger') return 'status-crit';
-    return 'status-info';
-  }
-
   recalculateAll() {
     const { room, listener, leftMon, rightMon } = this.renderer.state;
 
     const modes = calculateRoomModes(room.L, room.W, room.H, 320);
+    this.lastModes = modes;
     const fs = calculateSchroederFrequency(room.L, room.W, room.H, 0.35);
     const bolt = evaluateBoltProportions(room.L, room.W, room.H);
     const bonello = calculateBonelloCriterion(modes);
@@ -454,20 +453,22 @@ class SweetSpotApp {
     }
     if (this.dom.badgeBolt) {
       const ratioShort = `1 : ${bolt.normW.toFixed(2)} : ${bolt.normL.toFixed(2)}`;
-      this.dom.badgeBolt.textContent = `${bolt.status} (${ratioShort})`;
-      this.dom.badgeBolt.title = `${bolt.ratioText} — ${bolt.feedback}`;
-      this.dom.badgeBolt.className = `metric-value ${this.mapBadgeStatus(bolt.badgeClass)}`;
+      this.dom.badgeBolt.textContent = `${ratioShort} (${bolt.status.toLowerCase()})`;
+      this.dom.badgeBolt.title = bolt.feedback;
+      this.dom.badgeBolt.className = bolt.badgeClass === 'badge-danger'
+        ? 'flag-bad'
+        : (bolt.badgeClass === 'badge-warning' ? 'flag-warn' : '');
     }
     if (this.dom.badgeBonello) {
-      this.dom.badgeBonello.textContent = bonello.passes ? 'Monótona' : 'Con caídas';
-      this.dom.badgeBonello.className = `metric-value ${bonello.passes ? 'status-ok' : 'status-warn'}`;
+      this.dom.badgeBonello.textContent = bonello.passes ? 'monótona' : 'con caídas';
+      this.dom.badgeBonello.className = bonello.passes ? '' : 'flag-warn';
     }
 
     const frontNullF = sbirLeft.boundaries.find((b) => b.id === 'front')?.fNull || 100;
     if (this.dom.badgeSBIRFront) {
       const isCrit = (leftMon.y >= 0.55 && leftMon.y <= 1.25) || (frontNullF >= 60 && frontNullF <= 165);
-      this.dom.badgeSBIRFront.textContent = `${frontNullF} Hz (1.º nulo)`;
-      this.dom.badgeSBIRFront.className = `metric-value ${isCrit ? 'status-crit' : 'status-ok'}`;
+      this.dom.badgeSBIRFront.textContent = `${frontNullF} Hz`;
+      this.dom.badgeSBIRFront.className = isCrit ? 'flag-bad' : '';
     }
 
     this.populateHeatmapSelector(modes);
@@ -484,7 +485,7 @@ class SweetSpotApp {
     let html = '';
     topModes.forEach((m) => {
       const val = `${m.nx},${m.ny}`;
-      html += `<option value="${val}">${MODE_LABELS[m.type]} (${m.nx}, ${m.ny}, ${m.nz}) — ${m.freq.toFixed(1)} Hz</option>`;
+      html += `<option value="${val}">${MODE_LABELS[m.type]} (${m.nx}, ${m.ny}, ${m.nz}) - ${m.freq.toFixed(1)} Hz</option>`;
     });
 
     this.dom.selectHeatmapMode.innerHTML = html;
@@ -495,22 +496,35 @@ class SweetSpotApp {
 
   populateModesTable(modes) {
     if (!this.dom.modesTableBody) return;
-    const displayModes = modes.slice(0, 18);
+    const limit = this.showAllModes ? Math.min(modes.length, 40) : DEFAULT_MODES_LIMIT;
+    const displayModes = modes.slice(0, limit);
     let html = '';
 
     displayModes.forEach((m) => {
       const clickable = m.nx > 0 || m.ny > 0;
       const relDb = m.type === 'axial' ? '0.0' : (m.type === 'tangential' ? '-3.0' : '-6.0');
       html += `
-        <tr${clickable ? ` class="mode-clickable" data-nx="${m.nx}" data-ny="${m.ny}" title="Mostrar distribución 2D de este modo"` : ''}>
+        <tr${clickable ? ` class="mode-clickable" data-nx="${m.nx}" data-ny="${m.ny}" title="Ver distribución 2D de este modo"` : ''}>
           <td class="num">${m.freq.toFixed(1)}</td>
-          <td class="mono-cell">(${m.nx}, ${m.ny}, ${m.nz})</td>
+          <td class="mono">(${m.nx}, ${m.ny}, ${m.nz})</td>
           <td class="mode-${m.type}">${MODE_LABELS[m.type]}</td>
           <td class="num">${relDb}</td>
         </tr>
       `;
     });
     this.dom.modesTableBody.innerHTML = html;
+
+    if (this.dom.btnToggleAllModes) {
+      if (modes.length > DEFAULT_MODES_LIMIT) {
+        const cap = Math.min(modes.length, 40);
+        this.dom.btnToggleAllModes.style.display = 'inline';
+        this.dom.btnToggleAllModes.textContent = this.showAllModes
+          ? `Mostrar menos (${DEFAULT_MODES_LIMIT} primeros)`
+          : `Mostrar más modos (hasta ${cap} de ${modes.length})`;
+      } else {
+        this.dom.btnToggleAllModes.style.display = 'none';
+      }
+    }
   }
 
   populateSBIRTable(sbir) {
@@ -524,7 +538,7 @@ class SweetSpotApp {
         <tr>
           <td>${shortName}</td>
           <td class="num">${b.distToWall.toFixed(2)}</td>
-          <td class="num ${danger ? 'val-danger' : 'val-normal'}">${b.fNull}</td>
+          <td class="num ${danger ? 'val-danger' : ''}">${b.fNull}</td>
           <td class="num">${b.fPeak}</td>
           <td class="num">${b.delayMs.toFixed(1)}</td>
         </tr>
@@ -539,16 +553,14 @@ class SweetSpotApp {
 
     let html = '';
     diagnostics.forEach((d) => {
-      const statusText = SEVERITY_LABELS[d.severity] || 'Nota';
+      const rowClass = d.severity === 'danger'
+        ? ' class="is-danger"'
+        : (d.severity === 'warning' ? ' class="is-warning"' : '');
       html += `
-        <div class="diagnostic-item ${d.severity}">
-          <div class="diag-top">
-            <span class="diag-status"><span class="diag-dot"></span>${statusText}</span>
-            <span class="diag-category">${d.category}</span>
-          </div>
-          <div class="diag-title">${d.title}</div>
-          <div class="diag-body">${d.message}</div>
-        </div>
+        <tr${rowClass}>
+          <th>${d.category}</th>
+          <td>${d.message}</td>
+        </tr>
       `;
     });
 
@@ -562,13 +574,10 @@ class SweetSpotApp {
 
     if (this.dom.experimentProposalCard) {
       this.dom.experimentProposalCard.innerHTML = `
-        <div class="proposal-box">
-          <h4>${proposal.actionName}</h4>
-          <p class="proposal-reason">${proposal.reason}</p>
-          <div class="proposal-details">
-            <span>Variable: <code>${proposal.variable}</code></span>
-            <span>Variación: <strong>${proposal.deltaText}</strong></span>
-          </div>
+        <div class="proposal-block">
+          <p><strong>${proposal.actionName}</strong></p>
+          <p>${proposal.reason}</p>
+          <p class="proposal-meta">Variable: <code>${proposal.variable}</code> · Variación: <strong>${proposal.deltaText}</strong></p>
         </div>
       `;
       if (this.dom.btnApplyExperiment) {
@@ -616,9 +625,7 @@ class SweetSpotApp {
     }
     if (this.dom.experimentProposalCard) {
       this.dom.experimentProposalCard.innerHTML = `
-        <div class="proposal-applied">
-          <p>Ajuste aplicado sobre el plano y registrado en el historial.</p>
-        </div>
+        <p class="proposal-done">Cambio aplicado en el plano y anotado en el historial.</p>
       `;
     }
   }
@@ -629,12 +636,12 @@ class SweetSpotApp {
     this.recommender.history.forEach((item) => {
       html += `
         <tr>
-          <td class="mono-cell">${item.id}</td>
-          <td class="mono-cell">${item.timestamp}</td>
+          <td class="mono">${item.id}</td>
+          <td class="mono">${item.timestamp}</td>
           <td>${item.action}</td>
           <td><code>${item.variable}</code></td>
           <td class="num">${item.delta}</td>
-          <td class="mono-cell">${item.configSummary}</td>
+          <td class="mono">${item.configSummary}</td>
         </tr>
       `;
     });
