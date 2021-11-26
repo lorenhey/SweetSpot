@@ -1,19 +1,12 @@
 /**
- * SweetSpot - Renderizador 2D Interactivo de Estudio en Canvas
- * 
- * Dibuja en tiempo real (60 FPS):
- * - Plano arquitectónico con cuadrícula métrica y cotas acotadas
- * - Monitores estéreo (bafle, woofer, tweeter y ángulo de toe-in)
- * - Posición del oyente (Sweet Spot con orejas y orientación)
- * - Triángulo equilátero con distancias y ángulos en tiempo real
- * - Línea del 38% de Wes Lachot y zona crítica del nodo central (50%)
- * - Trazado de rayos de reflexión especular temprana (paredes laterales, frontal y trasera)
- * - Puntos de tratamiento acústico RFZ (Reflection Free Zone) sobre los muros
- * - Mapa de calor modal 2D interactivo (antinodos y nodos de presión)
- * - Soporte para arrastrar y soltar (drag & drop) táctil y con mouse
+ * SweetSpot — Renderizador 2D de planta de sala en Canvas
+ * Estética de plano arquitectónico sobre fondo claro con cotas métricas.
  */
 
 import { calculateMirrorReflectionRay } from './acoustics.js';
+
+const FONT_MONO = "'IBM Plex Mono', Consolas, Menlo, monospace";
+const FONT_SANS = "'IBM Plex Sans', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif";
 
 export class StudioCanvasRenderer {
   constructor(canvasElement, onStateChange) {
@@ -21,12 +14,11 @@ export class StudioCanvasRenderer {
     this.ctx = canvasElement.getContext('2d');
     this.onStateChange = onStateChange;
 
-    // Estado geométrico por defecto (en metros)
     this.state = {
-      room: { L: 5.2, W: 4.0, H: 2.6 },
-      listener: { x: 2.0, y: 1.98, z: 1.20 }, // 1.98 m ≈ 38% de 5.2 m
-      leftMon: { x: 1.20, y: 0.85, z: 1.20, toeIn: 30 },
-      rightMon: { x: 2.80, y: 0.85, z: 1.20, toeIn: -30 },
+      room: { L: 4.8, W: 3.6, H: 2.5 },
+      listener: { x: 1.8, y: 1.82, z: 1.2 },
+      leftMon: { x: 1.05, y: 0.65, z: 1.2, toeIn: 30 },
+      rightMon: { x: 2.55, y: 0.65, z: 1.2, toeIn: -30 },
       stereoLinked: true,
       autoToeIn: true,
       showRays: true,
@@ -37,13 +29,11 @@ export class StudioCanvasRenderer {
       activeHeatmapMode: { nx: 1, ny: 0 }
     };
 
-    // Parámetros de vista (zoom, pan, márgenes)
-    this.padding = 65; // píxeles alrededor de la sala
+    this.padding = 58;
     this.scale = 1.0;
     this.offsetX = 0;
     this.offsetY = 0;
 
-    // Estado de interacción (arrastre)
     this.draggingObject = null;
     this.hoverObject = null;
 
@@ -54,8 +44,8 @@ export class StudioCanvasRenderer {
   resize() {
     const dpr = window.devicePixelRatio || 1;
     const rect = this.canvas.getBoundingClientRect();
-    const width = rect.width || 800;
-    const height = rect.height || 600;
+    const width = rect.width || 720;
+    const height = rect.height || 500;
 
     this.canvas.width = width * dpr;
     this.canvas.height = height * dpr;
@@ -65,31 +55,26 @@ export class StudioCanvasRenderer {
     this.displayWidth = width;
     this.displayHeight = height;
 
-    // Calcular escala métrica a píxeles
     const availW = width - 2 * this.padding;
     const availH = height - 2 * this.padding;
     const scaleX = availW / this.state.room.W;
     const scaleY = availH / this.state.room.L;
     this.scale = Math.min(scaleX, scaleY);
 
-    // Centrar la sala en el lienzo
     this.offsetX = (width - this.state.room.W * this.scale) / 2;
     this.offsetY = (height - this.state.room.L * this.scale) / 2;
 
     this.render();
   }
 
-  // Conversión de coordenadas: metros -> píxeles en canvas
   toCanvasX(mX) {
     return this.offsetX + mX * this.scale;
   }
 
   toCanvasY(mY) {
-    // Eje Y: 0 es pared frontal (arriba), L es pared trasera (abajo)
     return this.offsetY + mY * this.scale;
   }
 
-  // Conversión inversa: píxeles en canvas -> metros
   toMetersX(cX) {
     return (cX - this.offsetX) / this.scale;
   }
@@ -108,11 +93,9 @@ export class StudioCanvasRenderer {
 
   recalculateToeIn() {
     const { leftMon, rightMon, listener } = this.state;
-    // Ángulo desde el monitor izquierdo hacia el oyente
     const angleLeftRad = Math.atan2(listener.x - leftMon.x, listener.y - leftMon.y);
     leftMon.toeIn = (angleLeftRad * 180) / Math.PI;
 
-    // Ángulo desde el monitor derecho hacia el oyente
     const angleRightRad = Math.atan2(listener.x - rightMon.x, listener.y - rightMon.y);
     rightMon.toeIn = (angleRightRad * 180) / Math.PI;
   }
@@ -153,7 +136,6 @@ export class StudioCanvasRenderer {
           this.state.leftMon.x = Math.round(mX * 100) / 100;
           this.state.leftMon.y = Math.round(mY * 100) / 100;
           if (this.state.stereoLinked) {
-            // Reflejar simétricamente en X respecto al eje central W/2
             const distFromCenter = (this.state.room.W / 2) - this.state.leftMon.x;
             this.state.rightMon.x = Math.round(((this.state.room.W / 2) + distFromCenter) * 100) / 100;
             this.state.rightMon.y = this.state.leftMon.y;
@@ -176,7 +158,10 @@ export class StudioCanvasRenderer {
         if (this.onStateChange) this.onStateChange(this.state);
       } else {
         const hit = this.hitTest(pos.x, pos.y);
-        this.hoverObject = hit;
+        if (hit !== this.hoverObject) {
+          this.hoverObject = hit;
+          this.render();
+        }
         this.canvas.style.cursor = hit ? 'grab' : 'default';
       }
     };
@@ -199,7 +184,7 @@ export class StudioCanvasRenderer {
   }
 
   hitTest(px, py) {
-    const threshold = 22; // radio de detección en píxeles
+    const threshold = 22;
 
     const lx = this.toCanvasX(this.state.listener.x);
     const ly = this.toCanvasY(this.state.listener.y);
@@ -216,45 +201,76 @@ export class StudioCanvasRenderer {
     return null;
   }
 
+  drawTextWithHalo(text, x, y, fillStyle, font, align = 'center') {
+    const { ctx } = this;
+    ctx.save();
+    ctx.font = font;
+    ctx.textAlign = align;
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+    ctx.strokeText(text, x, y);
+    ctx.fillStyle = fillStyle;
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
   render() {
     const { ctx, displayWidth, displayHeight } = this;
     const { room, listener, leftMon, rightMon } = this.state;
 
-    // 1. Limpieza de fondo estilo blueprint de sala acústica
-    ctx.fillStyle = '#0a0d14';
+    // Fondo exterior tipo mesa de dibujo
+    ctx.fillStyle = '#f2f1ec';
     ctx.fillRect(0, 0, displayWidth, displayHeight);
 
-    // 2. Dibujar cuadrícula métrica de fondo
+    // Interior de la sala en blanco puro
+    const rX = this.toCanvasX(0);
+    const rY = this.toCanvasY(0);
+    const rW = room.W * this.scale;
+    const rH = room.L * this.scale;
+
+    // Espesor de muro exterior arquitectónico
+    const wallT = 6;
+    ctx.fillStyle = '#e2e0d7';
+    ctx.fillRect(rX - wallT, rY - wallT, rW + wallT * 2, rH + wallT * 2);
+    ctx.strokeStyle = '#bcbab0';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(rX - wallT, rY - wallT, rW + wallT * 2, rH + wallT * 2);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(rX, rY, rW, rH);
+
+    // 1. Cuadrícula métrica
     this.drawGrid();
 
-    // 3. Mapa de calor modal (si está activado)
+    // 2. Mapa de presión modal
     if (this.state.showHeatmap && this.state.activeHeatmapMode) {
       this.drawModalHeatmap();
     }
 
-    // 4. Guías acústicas (Línea del 38% y Zona Crítica del 50%)
+    // 3. Guías 38% y 50%
     if (this.state.show38Rule) {
       this.drawAcousticRules();
     }
 
-    // 5. Trazado de rayos y puntos de reflexión especular RFZ
+    // 4. Rayos de primera reflexión y RFZ
     if (this.state.showRays) {
       this.drawReflectionRays();
     }
 
-    // 6. Triángulo estéreo equilátero
+    // 5. Triángulo estéreo
     if (this.state.showTriangle) {
       this.drawStereoTriangle();
     }
 
-    // 7. Paredes de la sala y cotas perimetrales
+    // 6. Perímetro interior de muros y cotas
     this.drawRoomWalls();
 
-    // 8. Dibujar monitores de estudio
+    // 7. Monitores L y R
     this.drawMonitor(leftMon, 'L', this.hoverObject === 'leftMon' || this.draggingObject === 'leftMon');
     this.drawMonitor(rightMon, 'R', this.hoverObject === 'rightMon' || this.draggingObject === 'rightMon');
 
-    // 9. Dibujar oyente (Sweet Spot)
+    // 8. Oyente
     this.drawListener(listener, this.hoverObject === 'listener' || this.draggingObject === 'listener');
   }
 
@@ -268,8 +284,9 @@ export class StudioCanvasRenderer {
     const rH = room.L * this.scale;
 
     ctx.save();
-    // Cuadrícula interior cada 0.5 m
-    ctx.strokeStyle = '#161e2e';
+
+    // Subdivisión cada 0.5 m
+    ctx.strokeStyle = '#f1f0ea';
     ctx.lineWidth = 1;
     for (let x = 0.5; x < room.W; x += 0.5) {
       const cx = this.toCanvasX(x);
@@ -286,9 +303,9 @@ export class StudioCanvasRenderer {
       ctx.stroke();
     }
 
-    // Cuadrícula principal cada 1.0 m
-    ctx.strokeStyle = '#202d42';
-    ctx.lineWidth = 1.2;
+    // Retícula principal cada 1.0 m
+    ctx.strokeStyle = '#e3e1d8';
+    ctx.lineWidth = 1;
     for (let x = 1.0; x < room.W; x += 1.0) {
       const cx = this.toCanvasX(x);
       ctx.beginPath();
@@ -304,9 +321,10 @@ export class StudioCanvasRenderer {
       ctx.stroke();
     }
 
-    // Eje de simetría central X = W/2
+    // Eje central longitudinal X = W/2
     const midX = this.toCanvasX(room.W / 2);
-    ctx.strokeStyle = 'rgba(99, 102, 241, 0.45)';
+    ctx.strokeStyle = 'rgba(115, 114, 107, 0.45)';
+    ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
     ctx.moveTo(midX, rY);
@@ -325,42 +343,52 @@ export class StudioCanvasRenderer {
 
     ctx.save();
 
-    // 1. Zona de peligro: 50% de la longitud (Nodo central de modos impares axiales)
-    const midY = this.toCanvasY(room.L * 0.50);
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.08)';
-    const dangerHeight = 0.20 * this.scale;
-    ctx.fillRect(rX, midY - dangerHeight / 2, rW, dangerHeight);
+    // Franja del nodo central (50% L)
+    const midY = this.toCanvasY(room.L * 0.5);
+    const bandH = 0.22 * this.scale;
+    ctx.fillStyle = 'rgba(180, 35, 24, 0.06)';
+    ctx.fillRect(rX, midY - bandH / 2, rW, bandH);
 
-    ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
+    ctx.strokeStyle = 'rgba(180, 35, 24, 0.55)';
+    ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
     ctx.moveTo(rX, midY);
     ctx.lineTo(rX + rW, midY);
     ctx.stroke();
 
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.85)';
-    ctx.font = '10px monospace';
-    ctx.textAlign = 'right';
-    ctx.fillText('NODO CENTRAL 50% (EVITAR)', rX + rW - 8, midY - 4);
+    this.drawTextWithHalo(
+      '50% L · nodo axial impar',
+      rX + rW - 8,
+      midY - 5,
+      '#9e2219',
+      `500 10px ${FONT_MONO}`,
+      'right'
+    );
 
-    // 2. Línea dorada del 38% (Wes Lachot) desde la pared frontal
+    // Línea de referencia 38% (Wes Lachot)
     const y38 = this.toCanvasY(room.L * 0.38);
-    ctx.strokeStyle = 'rgba(16, 185, 129, 0.7)';
+    ctx.strokeStyle = 'rgba(30, 107, 69, 0.65)';
+    ctx.lineWidth = 1.2;
     ctx.setLineDash([6, 4]);
-    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(rX, y38);
     ctx.lineTo(rX + rW, y38);
     ctx.stroke();
 
-    ctx.fillStyle = 'rgba(16, 185, 129, 0.9)';
-    ctx.font = '10px monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText('38% WES LACHOT (ÓPTIMO RECOMENDADO)', rX + 8, y38 - 5);
+    this.drawTextWithHalo(
+      '38% L (ref.)',
+      rX + 8,
+      y38 - 5,
+      '#1e6b45',
+      `500 10px ${FONT_MONO}`,
+      'left'
+    );
 
-    // 3. Línea del 62% (alternativa posterior)
+    // Referencia secundaria 62%
     const y62 = this.toCanvasY(room.L * 0.62);
-    ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
+    ctx.strokeStyle = 'rgba(30, 107, 69, 0.32)';
+    ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
     ctx.moveTo(rX, y62);
@@ -380,8 +408,8 @@ export class StudioCanvasRenderer {
     const rW = room.W * this.scale;
     const rH = room.L * this.scale;
 
-    const stepsX = 30;
-    const stepsY = 30;
+    const stepsX = 44;
+    const stepsY = 44;
     const cellW = rW / stepsX;
     const cellH = rH / stepsY;
 
@@ -390,25 +418,32 @@ export class StudioCanvasRenderer {
       const y = ((j + 0.5) / stepsY) * room.L;
       for (let i = 0; i < stepsX; i++) {
         const x = ((i + 0.5) / stepsX) * room.W;
-        // Presión acústica estacionaria normalizada (-1.0 a +1.0)
         const p = Math.cos((nx * Math.PI * x) / room.W) * Math.cos((ny * Math.PI * y) / room.L);
         const absP = Math.abs(p);
 
-        // Mapa de color: Rojo/Magenta para antinodos (alta presión), transparente para nodos
         if (p > 0) {
-          ctx.fillStyle = `rgba(239, 68, 68, ${absP * 0.35})`;
+          ctx.fillStyle = `rgba(180, 35, 24, ${absP * 0.28})`;
         } else {
-          ctx.fillStyle = `rgba(59, 130, 246, ${absP * 0.35})`;
+          ctx.fillStyle = `rgba(36, 107, 163, ${absP * 0.28})`;
         }
-        ctx.fillRect(rX + i * cellW, rY + j * cellH, cellW + 0.5, cellH + 0.5);
+        ctx.fillRect(rX + i * cellW, rY + j * cellH, cellW + 0.6, cellH + 0.6);
       }
     }
 
-    // Etiqueta del modo activo
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.font = '11px monospace';
+    // Cartela legible en la esquina inferior izquierda (evita solapar monitores)
+    const tagText = `Presión modal (${nx}, ${ny}, 0)`;
+    ctx.font = `500 10px ${FONT_MONO}`;
+    const tagW = ctx.measureText(tagText).width + 14;
+    const tagY = rY + rH - 40;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+    ctx.strokeStyle = '#d7d5cc';
+    ctx.lineWidth = 1;
+    ctx.fillRect(rX + 8, tagY, tagW, 20);
+    ctx.strokeRect(rX + 8, tagY, tagW, 20);
+
+    ctx.fillStyle = '#191918';
     ctx.textAlign = 'left';
-    ctx.fillText(`MAPA DE PRESIÓN MODAL: (${nx}, ${ny}, 0)`, rX + 10, rY + 20);
+    ctx.fillText(tagText, rX + 15, tagY + 13);
 
     ctx.restore();
   }
@@ -428,14 +463,18 @@ export class StudioCanvasRenderer {
     const distML = Math.hypot(listener.x - leftMon.x, listener.y - leftMon.y);
     const distMR = Math.hypot(listener.x - rightMon.x, listener.y - rightMon.y);
 
-    // Calcular desviación del triángulo equilátero
-    const maxDiff = Math.max(Math.abs(distMM - distML), Math.abs(distMM - distMR), Math.abs(distML - distMR));
+    const maxDiff = Math.max(
+      Math.abs(distMM - distML),
+      Math.abs(distMM - distMR),
+      Math.abs(distML - distMR)
+    );
     const isEquilateral = maxDiff <= 0.05;
 
     ctx.save();
 
-    // Relleno suave del cono de escucha
-    ctx.fillStyle = isEquilateral ? 'rgba(6, 182, 212, 0.04)' : 'rgba(245, 158, 11, 0.04)';
+    ctx.fillStyle = isEquilateral
+      ? 'rgba(27, 73, 101, 0.045)'
+      : 'rgba(161, 92, 7, 0.045)';
     ctx.beginPath();
     ctx.moveTo(lmx, lmy);
     ctx.lineTo(rmx, rmy);
@@ -443,9 +482,9 @@ export class StudioCanvasRenderer {
     ctx.closePath();
     ctx.fill();
 
-    // Líneas del triángulo
-    ctx.strokeStyle = isEquilateral ? 'rgba(6, 182, 212, 0.6)' : 'rgba(245, 158, 11, 0.6)';
-    ctx.lineWidth = 1.5;
+    const strokeColor = isEquilateral ? '#1b4965' : '#a15c07';
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 1.25;
     ctx.setLineDash([5, 4]);
     ctx.beginPath();
     ctx.moveTo(lmx, lmy);
@@ -455,25 +494,31 @@ export class StudioCanvasRenderer {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Etiquetas de distancias
-    ctx.font = '10px monospace';
-    ctx.fillStyle = '#06b6d4';
-    ctx.textAlign = 'center';
-
-    // Distancia Mon-Mon
-    const midMMX = (lmx + rmx) / 2;
-    const midMMY = (lmy + rmy) / 2 - 8;
-    ctx.fillText(`${distMM.toFixed(2)} m`, midMMX, midMMY);
-
-    // Distancia Left-Listener
-    const midMLX = (lmx + lx) / 2 - 18;
-    const midMLY = (lmy + ly) / 2;
-    ctx.fillText(`${distML.toFixed(2)} m`, midMLX, midMLY);
-
-    // Distancia Right-Listener
-    const midMRX = (rmx + lx) / 2 + 18;
-    const midMRY = (rmy + ly) / 2;
-    ctx.fillText(`${distMR.toFixed(2)} m`, midMRX, midMRY);
+    const labelFont = `500 10px ${FONT_MONO}`;
+    this.drawTextWithHalo(
+      `${distMM.toFixed(2)} m`,
+      (lmx + rmx) / 2,
+      (lmy + rmy) / 2 - 7,
+      strokeColor,
+      labelFont,
+      'center'
+    );
+    this.drawTextWithHalo(
+      `${distML.toFixed(2)} m`,
+      (lmx + lx) / 2 - 20,
+      (lmy + ly) / 2 + 2,
+      strokeColor,
+      labelFont,
+      'center'
+    );
+    this.drawTextWithHalo(
+      `${distMR.toFixed(2)} m`,
+      (rmx + lx) / 2 + 20,
+      (rmy + ly) / 2 + 2,
+      strokeColor,
+      labelFont,
+      'center'
+    );
 
     ctx.restore();
   }
@@ -485,8 +530,8 @@ export class StudioCanvasRenderer {
     const ly = this.toCanvasY(listener.y);
 
     const monitors = [
-      { mon: leftMon, color: 'rgba(56, 189, 248, 0.45)', tag: 'L' },
-      { mon: rightMon, color: 'rgba(167, 139, 250, 0.45)', tag: 'R' }
+      { mon: leftMon, color: 'rgba(27, 73, 101, 0.36)' },
+      { mon: rightMon, color: 'rgba(146, 78, 22, 0.34)' }
     ];
 
     const walls = ['left', 'right', 'front'];
@@ -496,48 +541,41 @@ export class StudioCanvasRenderer {
       const mx = this.toCanvasX(mon.x);
       const my = this.toCanvasY(mon.y);
 
-      walls.forEach(wall => {
+      walls.forEach((wall) => {
         const spec = calculateMirrorReflectionRay(mon, listener, wall, room);
         if (spec && spec.valid) {
           const sx = this.toCanvasX(spec.x);
           const sy = this.toCanvasY(spec.y);
 
-          // Rayo de incidencia: Monitor -> Punto de reflexión
           ctx.strokeStyle = color;
-          ctx.lineWidth = 1.2;
-          ctx.setLineDash([4, 4]);
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3, 3]);
           ctx.beginPath();
           ctx.moveTo(mx, my);
           ctx.lineTo(sx, sy);
-          ctx.stroke();
-
-          // Rayo reflejado: Punto de reflexión -> Oyente
-          ctx.beginPath();
-          ctx.moveTo(sx, sy);
           ctx.lineTo(lx, ly);
           ctx.stroke();
 
-          // Parche de tratamiento RFZ sobre el muro
           if (showRFZ) {
             ctx.setLineDash([]);
-            ctx.fillStyle = '#f59e0b';
-            ctx.strokeStyle = '#d97706';
-            ctx.lineWidth = 2;
+            ctx.fillStyle = '#c47a17';
+            ctx.strokeStyle = '#8c5308';
+            ctx.lineWidth = 1;
 
             if (wall === 'left' || wall === 'right') {
-              const padH = 0.6 * this.scale; // Panel acústico de 60 cm
-              ctx.fillRect(sx - (wall === 'left' ? 4 : 2), sy - padH / 2, 6, padH);
-              ctx.strokeRect(sx - (wall === 'left' ? 4 : 2), sy - padH / 2, 6, padH);
+              const padH = 0.6 * this.scale;
+              const offsetX = wall === 'left' ? -1 : -4;
+              ctx.fillRect(sx + offsetX, sy - padH / 2, 5, padH);
+              ctx.strokeRect(sx + offsetX, sy - padH / 2, 5, padH);
             } else if (wall === 'front') {
               const padW = 0.6 * this.scale;
-              ctx.fillRect(sx - padW / 2, sy - 2, padW, 6);
-              ctx.strokeRect(sx - padW / 2, sy - 2, padW, 6);
+              ctx.fillRect(sx - padW / 2, sy - 1, padW, 5);
+              ctx.strokeRect(sx - padW / 2, sy - 1, padW, 5);
             }
 
-            // Halo del punto de espejo
-            ctx.fillStyle = 'rgba(245, 158, 11, 0.8)';
+            ctx.fillStyle = '#8c5308';
             ctx.beginPath();
-            ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+            ctx.arc(sx, sy, 2.5, 0, Math.PI * 2);
             ctx.fill();
           }
         }
@@ -558,65 +596,56 @@ export class StudioCanvasRenderer {
 
     ctx.save();
 
-    // Muros perimetrales con grosor y sombra arquitectónica
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 4;
+    // Muro interior principal
+    ctx.strokeStyle = '#1e2022';
+    ctx.lineWidth = 2.25;
     ctx.strokeRect(rX, rY, rW, rH);
 
-    // Borde exterior arquitectónico
-    ctx.strokeStyle = '#1e293b';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(rX - 6, rY - 6, rW + 12, rH + 12);
-
-    // Cotas métricas en los extremos
-    ctx.font = '11px monospace';
-    ctx.fillStyle = '#94a3b8';
+    // Cotas exteriores
+    ctx.font = `500 11px ${FONT_MONO}`;
+    ctx.fillStyle = '#4e4d48';
     ctx.textAlign = 'center';
 
-    // Cota horizontal superior (Ancho W)
-    ctx.fillText(`${room.W.toFixed(2)} m (Ancho W)`, rX + rW / 2, rY - 14);
-    this.drawDimensionArrow(rX, rY - 8, rX + rW, rY - 8);
+    ctx.fillText(`Ancho W = ${room.W.toFixed(2)} m`, rX + rW / 2, rY - 22);
+    this.drawDimensionLine(rX, rY - 14, rX + rW, rY - 14);
 
-    // Cota vertical izquierda (Largo L)
     ctx.save();
-    ctx.translate(rX - 16, rY + rH / 2);
+    ctx.translate(rX - 24, rY + rH / 2);
     ctx.rotate(-Math.PI / 2);
-    ctx.fillText(`${room.L.toFixed(2)} m (Largo L)`, 0, 0);
+    ctx.fillText(`Largo L = ${room.L.toFixed(2)} m`, 0, 0);
     ctx.restore();
-    this.drawDimensionArrow(rX - 8, rY, rX - 8, rY + rH);
+    this.drawDimensionLine(rX - 14, rY, rX - 14, rY + rH);
 
-    // Etiquetas de muros
-    ctx.font = '10px sans-serif';
-    ctx.fillStyle = '#64748b';
+    // Referencias discretas de paredes
+    ctx.font = `500 9.5px ${FONT_SANS}`;
+    ctx.fillStyle = '#73726b';
+    ctx.textAlign = 'center';
     ctx.fillText('PARED FRONTAL (y = 0)', rX + rW / 2, rY + 14);
     ctx.fillText('PARED TRASERA (y = L)', rX + rW / 2, rY + rH - 6);
 
     ctx.restore();
   }
 
-  drawDimensionArrow(x1, y1, x2, y2) {
+  drawDimensionLine(x1, y1, x2, y2) {
     const { ctx } = this;
     ctx.save();
-    ctx.strokeStyle = '#64748b';
+    ctx.strokeStyle = '#8b8980';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
     ctx.stroke();
 
-    // Pequeños topes perpendiculares
     const isHoriz = y1 === y2;
+    ctx.beginPath();
     if (isHoriz) {
-      ctx.beginPath();
       ctx.moveTo(x1, y1 - 4); ctx.lineTo(x1, y1 + 4);
       ctx.moveTo(x2, y2 - 4); ctx.lineTo(x2, y2 + 4);
-      ctx.stroke();
     } else {
-      ctx.beginPath();
       ctx.moveTo(x1 - 4, y1); ctx.lineTo(x1 + 4, y1);
       ctx.moveTo(x2 - 4, y2); ctx.lineTo(x2 + 4, y2);
-      ctx.stroke();
     }
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -625,122 +654,118 @@ export class StudioCanvasRenderer {
     const mx = this.toCanvasX(mon.x);
     const my = this.toCanvasY(mon.y);
 
-    // Ancho y profundidad física aproximada del bafle (ej. 24 x 32 cm)
-    const boxW = 0.22 * this.scale;
-    const boxH = 0.30 * this.scale;
+    const boxW = Math.max(16, 0.22 * this.scale);
+    const boxH = Math.max(22, 0.30 * this.scale);
 
     ctx.save();
     ctx.translate(mx, my);
-    // Rotar según el ángulo de toe-in (en radianes)
     ctx.rotate((mon.toeIn * Math.PI) / 180);
 
-    // Sombra si está seleccionado/hover
+    // Anillo sutil al pasar el cursor o arrastrar
     if (isHighlighted) {
-      ctx.shadowColor = '#38bdf8';
-      ctx.shadowBlur = 12;
+      ctx.strokeStyle = '#1b4965';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(-boxW / 2 - 4, -boxH / 2 - 4, boxW + 8, boxH + 8);
     }
 
-    // Cuerpo del gabinete del monitor
-    ctx.fillStyle = isHighlighted ? '#1e293b' : '#0f172a';
-    ctx.strokeStyle = isHighlighted ? '#38bdf8' : '#475569';
-    ctx.lineWidth = 2;
+    // Gabinete del monitor
+    ctx.fillStyle = isHighlighted ? '#1f2326' : '#2d3033';
+    ctx.strokeStyle = '#141516';
+    ctx.lineWidth = 1.5;
     ctx.fillRect(-boxW / 2, -boxH / 2, boxW, boxH);
     ctx.strokeRect(-boxW / 2, -boxH / 2, boxW, boxH);
 
-    // Woofer (cono inferior)
-    ctx.fillStyle = '#334155';
-    ctx.strokeStyle = '#64748b';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(0, boxH * 0.15, boxW * 0.35, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    // Tweeter (cúpula superior)
-    ctx.fillStyle = '#0284c7';
-    ctx.beginPath();
-    ctx.arc(0, -boxH * 0.22, boxW * 0.18, 0, Math.PI * 2);
-    ctx.fill();
+    // Bafle frontal (borde hacia el oyente, +Y local)
+    ctx.fillStyle = '#5a5f66';
+    ctx.fillRect(-boxW / 2 + 1, boxH / 2 - 3.5, boxW - 2, 2.5);
 
     // Etiqueta L / R
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = 'bold 10px monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `600 10px ${FONT_MONO}`;
     ctx.textAlign = 'center';
-    ctx.fillText(label, 0, boxH * 0.2);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, 0, -1);
 
-    // Flecha indicadora de frente acústico
-    ctx.strokeStyle = '#06b6d4';
-    ctx.lineWidth = 1.5;
+    // Eje acústico frontal
+    ctx.strokeStyle = '#1b4965';
+    ctx.lineWidth = 1.25;
     ctx.beginPath();
     ctx.moveTo(0, boxH / 2);
-    ctx.lineTo(0, boxH / 2 + 10);
+    ctx.lineTo(0, boxH / 2 + 11);
     ctx.stroke();
 
     ctx.restore();
 
-    // Cota de distancia a pared frontal (SBIR frontal)
-    ctx.save();
-    ctx.font = '9px monospace';
-    ctx.fillStyle = '#38bdf8';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${mon.y.toFixed(2)} m fw`, mx, my - boxH / 2 - 8);
-    ctx.restore();
+    // Cota de distancia a la pared frontal
+    this.drawTextWithHalo(
+      `${mon.y.toFixed(2)} m`,
+      mx,
+      my - boxH / 2 - 7,
+      '#4e4d48',
+      `500 9.5px ${FONT_MONO}`,
+      'center'
+    );
   }
 
   drawListener(listener, isHighlighted) {
     const { ctx } = this;
     const lx = this.toCanvasX(listener.x);
     const ly = this.toCanvasY(listener.y);
-    const headRadius = 0.14 * this.scale;
+    const r = Math.max(10, 0.135 * this.scale);
 
     ctx.save();
     ctx.translate(lx, ly);
 
     if (isHighlighted) {
-      ctx.shadowColor = '#10b981';
-      ctx.shadowBlur = 14;
+      ctx.strokeStyle = 'rgba(30, 107, 69, 0.35)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, r + 5, 0, Math.PI * 2);
+      ctx.stroke();
     }
 
-    // Cabeza del oyente
-    ctx.fillStyle = isHighlighted ? '#064e3b' : '#042f2e';
-    ctx.strokeStyle = isHighlighted ? '#10b981' : '#059669';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.arc(0, 0, headRadius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
+    // Orejas
+    const earW = Math.max(3, r * 0.24);
+    const earH = r * 0.56;
+    ctx.fillStyle = '#1e6b45';
+    ctx.fillRect(-r - earW * 0.55, -earH / 2, earW, earH);
+    ctx.fillRect(r - earW * 0.45, -earH / 2, earW, earH);
 
-    // Nariz (orientación hacia pared frontal, hacia arriba)
-    ctx.fillStyle = '#10b981';
+    // Nariz (orientación hacia pared frontal)
     ctx.beginPath();
-    ctx.moveTo(-headRadius * 0.25, -headRadius);
-    ctx.lineTo(0, -headRadius * 1.35);
-    ctx.lineTo(headRadius * 0.25, -headRadius);
+    ctx.moveTo(-r * 0.24, -r + 0.5);
+    ctx.lineTo(0, -r * 1.38);
+    ctx.lineTo(r * 0.24, -r + 0.5);
     ctx.closePath();
     ctx.fill();
 
-    // Orejas (izquierda y derecha)
-    const earW = headRadius * 0.28;
-    const earH = headRadius * 0.55;
-    ctx.fillStyle = '#10b981';
-    ctx.fillRect(-headRadius - earW * 0.6, -earH / 2, earW, earH);
-    ctx.fillRect(headRadius - earW * 0.4, -earH / 2, earW, earH);
+    // Cabeza
+    ctx.fillStyle = '#eef6f1';
+    ctx.strokeStyle = '#1e6b45';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
 
-    // Texto Sweet Spot
-    ctx.fillStyle = '#ecfdf5';
-    ctx.font = 'bold 9px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('SWEET', 0, -2);
-    ctx.fillText('SPOT', 0, 8);
+    // Cruz central mínima
+    ctx.strokeStyle = '#1e6b45';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-3.5, 0); ctx.lineTo(3.5, 0);
+    ctx.moveTo(0, -3.5); ctx.lineTo(0, 3.5);
+    ctx.stroke();
 
     ctx.restore();
 
-    // Cota de distancia del oyente a pared frontal
-    ctx.save();
-    ctx.font = '10px monospace';
-    ctx.fillStyle = '#10b981';
-    ctx.textAlign = 'left';
-    ctx.fillText(`y = ${listener.y.toFixed(2)} m (${((listener.y / this.state.room.L) * 100).toFixed(1)}% L)`, lx + headRadius + 12, ly + 4);
-    ctx.restore();
+    const pct = ((listener.y / this.state.room.L) * 100).toFixed(1);
+    this.drawTextWithHalo(
+      `y = ${listener.y.toFixed(2)} m (${pct}%)`,
+      lx,
+      ly + r + 15,
+      '#1e6b45',
+      `500 10px ${FONT_MONO}`,
+      'center'
+    );
   }
 }

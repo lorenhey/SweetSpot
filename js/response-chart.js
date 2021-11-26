@@ -1,15 +1,10 @@
 /**
- * SweetSpot - Gráfico Espectral de Respuesta en Frecuencia (20 Hz - 500 Hz)
- * 
- * Dibuja en tiempo real sobre Canvas:
- * - Eje logarítmico calibrado en audiofrecuencia (20 Hz a 500 Hz)
- * - Eje vertical en escala decibélica (-30 dB a +18 dB con 0 dB de referencia)
- * - Curva total combinada (SPL Sintético en el Sweet Spot)
- * - Desglose de curva SBIR (interferencias de frontera) y Resonancia Modal
- * - Marcador de frecuencia de corte de Schroeder (f_s)
- * - Indicadores visuales de modos axiales, tangenciales y nulos de cuarto de onda
- * - Tooltip interactivo al pasar el cursor
+ * SweetSpot — Gráfico logarítmico de respuesta en baja frecuencia (20–500 Hz)
+ * Papel gráfico científico claro: sin resplandores ni efectos decorativos.
  */
+
+const FONT_MONO = "'IBM Plex Mono', Consolas, Menlo, monospace";
+const FONT_SANS = "'IBM Plex Sans', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif";
 
 export class FrequencyResponseChart {
   constructor(canvasElement) {
@@ -30,7 +25,7 @@ export class FrequencyResponseChart {
       showModalOnly: true
     };
 
-    this.padding = { top: 25, right: 30, bottom: 40, left: 55 };
+    this.padding = { top: 24, right: 24, bottom: 36, left: 52 };
     this.initEvents();
     this.resize();
   }
@@ -38,8 +33,8 @@ export class FrequencyResponseChart {
   resize() {
     const dpr = window.devicePixelRatio || 1;
     const rect = this.canvas.getBoundingClientRect();
-    const width = rect.width || 800;
-    const height = rect.height || 280;
+    const width = rect.width || 720;
+    const height = rect.height || 270;
 
     this.canvas.width = width * dpr;
     this.canvas.height = height * dpr;
@@ -69,6 +64,11 @@ export class FrequencyResponseChart {
       this.hoverY = null;
       this.render();
     });
+  }
+
+  setOptions(partialOptions) {
+    Object.assign(this.options, partialOptions);
+    this.render();
   }
 
   setData(curveData, modes, schroederFreq) {
@@ -102,81 +102,82 @@ export class FrequencyResponseChart {
     const { ctx, width, height, plotWidth, plotHeight, padding } = this;
     if (!width || !height) return;
 
-    // Fondo oscuro con degradé sutil
-    ctx.fillStyle = '#0a0d14';
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
 
-    // 1. Rejilla y ejes de frecuencia logarítmicos
     this.drawGridAndAxes();
-
-    // 2. Línea y zona de frecuencia de Schroeder
     this.drawSchroederLine();
-
-    // 3. Marcadores de modos propios en la base
     this.drawModeMarkers();
 
-    // 4. Curvas de respuesta
     if (this.curveData && this.curveData.length > 0) {
-      // Curva SBIR (desglose)
       if (this.options.showSBIROnly) {
-        this.drawCurve(this.curveData.map(d => ({ freq: d.freq, val: d.sbirDb })), 'rgba(245, 158, 11, 0.45)', 1.2, [3, 3]);
+        this.drawCurve(
+          this.curveData.map((d) => ({ freq: d.freq, val: d.sbirDb })),
+          'rgba(161, 92, 7, 0.72)',
+          1.25,
+          [4, 3]
+        );
       }
 
-      // Curva Modal (desglose)
       if (this.options.showModalOnly) {
-        this.drawCurve(this.curveData.map(d => ({ freq: d.freq, val: d.modalDb })), 'rgba(167, 139, 250, 0.45)', 1.2, [4, 4]);
+        this.drawCurve(
+          this.curveData.map((d) => ({ freq: d.freq, val: d.modalDb })),
+          'rgba(59, 105, 152, 0.72)',
+          1.25,
+          [3, 3]
+        );
       }
 
-      // Curva Total Combinada
-      this.drawCurve(this.curveData.map(d => ({ freq: d.freq, val: d.spl })), '#38bdf8', 2.5);
+      this.drawCurve(
+        this.curveData.map((d) => ({ freq: d.freq, val: d.spl })),
+        '#191918',
+        2.0
+      );
     }
 
-    // 5. Marco exterior del gráfico
-    ctx.strokeStyle = '#1e293b';
+    // Marco limpio del gráfico
+    ctx.strokeStyle = '#3a3935';
     ctx.lineWidth = 1;
     ctx.strokeRect(padding.left, padding.top, plotWidth, plotHeight);
 
-    // 6. Tooltip interactivo al cursor
     this.drawHoverTooltip();
   }
 
   drawGridAndAxes() {
     const { ctx, padding, plotWidth, plotHeight } = this;
-    const { minFreq, maxFreq, minDb, maxDb } = this.options;
 
     ctx.save();
 
-    // Eje vertical: Niveles en dB (-30, -20, -10, 0, +10 dB)
+    // Líneas horizontales de dB
     const dbSteps = [-30, -20, -10, 0, 10];
-    dbSteps.forEach(db => {
+    dbSteps.forEach((db) => {
       const y = this.dbToY(db);
-      ctx.strokeStyle = db === 0 ? 'rgba(148, 163, 184, 0.45)' : '#161e2e';
-      ctx.lineWidth = db === 0 ? 1.5 : 1;
-      ctx.setLineDash(db === 0 ? [] : [2, 4]);
+      ctx.strokeStyle = db === 0 ? '#8c8b83' : '#ecebe4';
+      ctx.lineWidth = db === 0 ? 1.15 : 1;
+      ctx.setLineDash([]);
 
       ctx.beginPath();
       ctx.moveTo(padding.left, y);
       ctx.lineTo(padding.left + plotWidth, y);
       ctx.stroke();
 
-      // Texto de dB
-      ctx.font = '10px monospace';
-      ctx.fillStyle = db === 0 ? '#f8fafc' : '#64748b';
+      ctx.font = `400 10px ${FONT_MONO}`;
+      ctx.fillStyle = db === 0 ? '#191918' : '#6e6d66';
       ctx.textAlign = 'right';
-      ctx.fillText(`${db > 0 ? '+' : ''}${db} dB`, padding.left - 8, y + 3);
+      ctx.fillText(`${db > 0 ? '+' : ''}${db}`, padding.left - 8, y + 3.5);
     });
 
-    // Eje horizontal: Frecuencias logarítmicas estándar
-    const majorFreqs = [20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400, 500];
+    // Frecuencias logarítmicas
+    const gridFreqs = [20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200, 300, 400, 500];
     const labeledFreqs = [20, 30, 50, 70, 100, 200, 300, 500];
 
-    majorFreqs.forEach(f => {
+    gridFreqs.forEach((f) => {
       const x = this.freqToX(f);
       const isLabeled = labeledFreqs.includes(f);
 
-      ctx.strokeStyle = isLabeled ? '#1e293b' : '#111827';
+      ctx.strokeStyle = isLabeled ? '#e3e1d8' : '#f2f1eb';
       ctx.lineWidth = 1;
-      ctx.setLineDash(isLabeled ? [3, 3] : [1, 5]);
+      ctx.setLineDash([]);
 
       ctx.beginPath();
       ctx.moveTo(x, padding.top);
@@ -184,48 +185,54 @@ export class FrequencyResponseChart {
       ctx.stroke();
 
       if (isLabeled) {
-        ctx.font = '10px monospace';
-        ctx.fillStyle = '#64748b';
+        ctx.font = `400 10px ${FONT_MONO}`;
+        ctx.fillStyle = '#54534e';
         ctx.textAlign = 'center';
-        ctx.fillText(`${f}Hz`, x, padding.top + plotHeight + 16);
+        ctx.fillText(`${f}`, x, padding.top + plotHeight + 15);
       }
     });
 
-    // Título de ejes
-    ctx.font = '10px sans-serif';
-    ctx.fillStyle = '#94a3b8';
+    // Etiquetas de ejes
+    ctx.font = `500 10px ${FONT_SANS}`;
+    ctx.fillStyle = '#54534e';
     ctx.textAlign = 'left';
-    ctx.fillText('Nivel Relativo (dB)', padding.left, padding.top - 8);
+    ctx.fillText('Nivel relativo (dB)', padding.left, padding.top - 8);
+
+    ctx.textAlign = 'right';
+    ctx.fillText('Frecuencia (Hz)', padding.left + plotWidth, padding.top + plotHeight + 29);
 
     ctx.restore();
   }
 
   drawSchroederLine() {
-    const { ctx, padding, plotHeight } = this;
+    const { ctx, padding, plotWidth, plotHeight } = this;
     const fs = this.schroederFreq;
     if (fs < this.options.minFreq || fs > this.options.maxFreq) return;
 
     const x = this.freqToX(fs);
 
     ctx.save();
-    // Banda sombreada de transición modal
-    ctx.fillStyle = 'rgba(234, 179, 8, 0.04)';
+    // Región modal discreta levemente sombreada
+    ctx.fillStyle = 'rgba(25, 25, 24, 0.028)';
     ctx.fillRect(padding.left, padding.top, x - padding.left, plotHeight);
 
-    // Línea de corte
-    ctx.strokeStyle = '#eab308';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#6e6d66';
+    ctx.lineWidth = 1;
     ctx.setLineDash([4, 3]);
     ctx.beginPath();
     ctx.moveTo(x, padding.top);
     ctx.lineTo(x, padding.top + plotHeight);
     ctx.stroke();
+    ctx.setLineDash([]);
 
-    // Etiqueta
-    ctx.fillStyle = '#eab308';
-    ctx.font = 'bold 9px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(`fs = ${fs} Hz (Schroeder)`, x, padding.top + 12);
+    const label = `fs = ${fs} Hz`;
+    ctx.font = `500 9.5px ${FONT_MONO}`;
+    const nearRight = x > padding.left + plotWidth - 65;
+    ctx.textAlign = nearRight ? 'right' : 'left';
+    const lx = nearRight ? x - 5 : x + 5;
+    ctx.fillStyle = '#4e4d48';
+    ctx.fillText(label, lx, padding.top + 12);
+
     ctx.restore();
   }
 
@@ -233,22 +240,24 @@ export class FrequencyResponseChart {
     const { ctx, padding, plotHeight } = this;
     ctx.save();
 
-    this.modes.forEach(m => {
+    this.modes.forEach((m) => {
       if (m.freq < this.options.minFreq || m.freq > this.options.maxFreq) return;
       const x = this.freqToX(m.freq);
 
-      let color = 'rgba(148, 163, 184, 0.3)';
-      let height = 6;
+      let color = '#b5b3aa';
+      let height = 4;
+      let width = 1;
       if (m.type === 'axial') {
-        color = '#ef4444'; // Rojo: axial (mayor impacto)
-        height = 14;
+        color = '#b42318';
+        height = 11;
+        width = 1.5;
       } else if (m.type === 'tangential') {
-        color = '#f59e0b'; // Naranja: tangencial
-        height = 9;
+        color = '#a15c07';
+        height = 7;
       }
 
       ctx.strokeStyle = color;
-      ctx.lineWidth = m.type === 'axial' ? 2 : 1;
+      ctx.lineWidth = width;
       ctx.beginPath();
       ctx.moveTo(x, padding.top + plotHeight);
       ctx.lineTo(x, padding.top + plotHeight - height);
@@ -265,13 +274,8 @@ export class FrequencyResponseChart {
     ctx.save();
     ctx.strokeStyle = color;
     ctx.lineWidth = lineWidth;
+    ctx.lineJoin = 'round';
     ctx.setLineDash(dash);
-
-    // Resplandor para la curva principal
-    if (lineWidth > 2) {
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 6;
-    }
 
     ctx.beginPath();
     points.forEach((pt, idx) => {
@@ -284,7 +288,6 @@ export class FrequencyResponseChart {
       }
     });
     ctx.stroke();
-
     ctx.restore();
   }
 
@@ -295,7 +298,6 @@ export class FrequencyResponseChart {
     if (hoverY < padding.top || hoverY > padding.top + plotHeight) return;
 
     const fHover = this.xToFreq(hoverX);
-    // Encontrar punto más cercano en la curva
     let closest = null;
     let minDiff = Infinity;
     for (const d of curveData) {
@@ -313,31 +315,24 @@ export class FrequencyResponseChart {
 
     ctx.save();
 
-    // Línea guía vertical
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.strokeStyle = 'rgba(25, 25, 24, 0.35)';
     ctx.lineWidth = 1;
     ctx.setLineDash([2, 2]);
     ctx.beginPath();
     ctx.moveTo(xPos, padding.top);
     ctx.lineTo(xPos, padding.top + plotHeight);
     ctx.stroke();
+    ctx.setLineDash([]);
 
-    // Punto resaltado sobre la curva
-    ctx.fillStyle = '#38bdf8';
+    ctx.fillStyle = '#191918';
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(xPos, yPos, 4.5, 0, Math.PI * 2);
+    ctx.arc(xPos, yPos, 4, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    // Cuadro de texto flotante
-    const textFreq = `${closest.freq.toFixed(1)} Hz`;
-    const textSPL = `${closest.spl > 0 ? '+' : ''}${closest.spl.toFixed(1)} dB`;
-    const textSBIR = `SBIR: ${closest.sbirDb.toFixed(1)} dB`;
-    const textModal = `Modal: ${closest.modalDb.toFixed(1)} dB`;
-
-    const boxW = 120;
+    const boxW = 132;
     const boxH = 68;
     let boxX = xPos + 12;
     let boxY = yPos - boxH / 2;
@@ -345,29 +340,33 @@ export class FrequencyResponseChart {
     if (boxX + boxW > padding.left + plotWidth) {
       boxX = xPos - boxW - 12;
     }
-    if (boxY < padding.top) boxY = padding.top + 4;
-    if (boxY + boxH > padding.top + plotHeight) boxY = padding.top + plotHeight - boxH - 4;
+    if (boxY < padding.top + 2) boxY = padding.top + 4;
+    if (boxY + boxH > padding.top + plotHeight - 2) boxY = padding.top + plotHeight - boxH - 4;
 
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
-    ctx.strokeStyle = '#38bdf8';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.96)';
+    ctx.strokeStyle = '#3a3935';
     ctx.lineWidth = 1;
     ctx.fillRect(boxX, boxY, boxW, boxH);
     ctx.strokeRect(boxX, boxY, boxW, boxH);
 
-    ctx.font = 'bold 11px monospace';
-    ctx.fillStyle = '#38bdf8';
+    const splStr = `${closest.spl > 0 ? '+' : ''}${closest.spl.toFixed(1)} dB`;
+    const sbirStr = `${closest.sbirDb > 0 ? '+' : ''}${closest.sbirDb.toFixed(1)} dB`;
+    const modalStr = `${closest.modalDb > 0 ? '+' : ''}${closest.modalDb.toFixed(1)} dB`;
+
+    ctx.font = `600 10.5px ${FONT_MONO}`;
+    ctx.fillStyle = '#191918';
     ctx.textAlign = 'left';
-    ctx.fillText(textFreq, boxX + 8, boxY + 16);
+    ctx.fillText(`${closest.freq.toFixed(1)} Hz`, boxX + 8, boxY + 15);
 
-    ctx.font = '10px monospace';
-    ctx.fillStyle = '#f8fafc';
-    ctx.fillText(`SPL: ${textSPL}`, boxX + 8, boxY + 32);
+    ctx.font = `400 10px ${FONT_MONO}`;
+    ctx.fillStyle = '#191918';
+    ctx.fillText(`Total: ${splStr}`, boxX + 8, boxY + 31);
 
-    ctx.fillStyle = '#f59e0b';
-    ctx.fillText(textSBIR, boxX + 8, boxY + 46);
+    ctx.fillStyle = '#a15c07';
+    ctx.fillText(`SBIR:  ${sbirStr}`, boxX + 8, boxY + 46);
 
-    ctx.fillStyle = '#a78bfa';
-    ctx.fillText(textModal, boxX + 8, boxY + 60);
+    ctx.fillStyle = '#3b6998';
+    ctx.fillText(`Modal: ${modalStr}`, boxX + 8, boxY + 60);
 
     ctx.restore();
   }
