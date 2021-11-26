@@ -360,7 +360,7 @@ export class StudioCanvasRenderer {
     this.drawTextWithHalo(
       '50% L · nodo axial impar',
       rX + rW - 8,
-      midY - 5,
+      midY + 12,
       '#9e2219',
       `500 10px ${FONT_MONO}`,
       'right'
