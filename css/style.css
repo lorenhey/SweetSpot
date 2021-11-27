@@ -30,6 +30,10 @@ a:hover {
   color: #062f54;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -105,6 +109,40 @@ a:hover {
 .nav-ext:hover {
   color: #ffffff;
   text-decoration: underline;
+}
+
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-left: 0.25rem;
+  font-size: 0.82rem;
+  color: #8aa8c7;
+}
+
+.lang-btn {
+  background: none;
+  border: none;
+  padding: 0.1rem 0.15rem;
+  font-family: inherit;
+  font-size: 0.82rem;
+  color: #b7cde3;
+  cursor: pointer;
+}
+
+.lang-btn:hover {
+  color: #ffffff;
+}
+
+.lang-btn.active {
+  color: #ffffff;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.lang-sep {
+  opacity: 0.6;
 }
 
 /* Cuerpo de página */

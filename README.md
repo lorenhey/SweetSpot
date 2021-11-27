@@ -1,103 +1,155 @@
 # SweetSpot
 
-> **Simulador Acústico Interactivo y Asistente Experimental de Posicionamiento de Monitores y Oyente.**
-> 
-> *Optimizar la ubicación física antes de intentar corregir electrónicamente.*
+[Español](#español) · [English](#english)
 
-[![GitHub Pages](https://img.shields.io/badge/Demo%20En%20Vivo-GitHub%20Pages-0284c7?style=for-the-badge&logo=github)](https://lorenhey.github.io/SweetSpot/)
-[![Python](https://img.shields.io/badge/Python-3.12-blue?style=flat-square&logo=python)](https://python.org)
-[![PySide6](https://img.shields.io/badge/GUI-PySide6-41cd52?style=flat-square&logo=qt)](https://qt.io)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+Simulador web / Web tool: [https://lorenhey.github.io/SweetSpot/](https://lorenhey.github.io/SweetSpot/)
 
 ---
 
-## 🌐 Simulador Web Interactivo (Zero-Backend)
+## Español
 
-Probá el simulador directamente desde tu navegador sin instalar nada:
+Asistente experimental y herramienta de acústica de salas para ubicar dos monitores de estudio y una única posición de escucha antes de recurrir a ecualización electrónica.
 
-👉 **[https://lorenhey.github.io/SweetSpot/](https://lorenhey.github.io/SweetSpot/)**
+La premisa de trabajo es directa: el modelo geométrico sugiere qué probar, y el micrófono decide en la sala real. El ciclo consiste en medir, cambiar una sola variable física por vez (posición del oyente, distancia a la pared frontal, separación o toe-in), volver a medir y comparar qué mejoró y qué empeoró.
 
-- **Lienzo 2D a 60 FPS:** Arrastrá y ubicá libremente los monitores y tu cabeza en el plano métrico de la sala.
-- **Física de Modos Propios:** Cálculo exacto de modos axiales, tangenciales y oblicuos mediante la fórmula de Rayleigh.
-- **Corte de Schroeder ($f_s$):** Cálculo de la frontera entre comportamiento modal discreto y campo difuso.
-- **Interferencias de Frontera (SBIR):** Cancelaciones de cuarto de onda ($\lambda / 4$) en tiempo real para paredes frontal, laterales, piso y techo.
-- **Trazado de Rayos Especulares (RFZ):** Detección visual de los puntos de primeras reflexiones sobre los muros para ubicar paneles absorbentes con la técnica del espejo.
-- **Asistente Heurístico:** Propuestas paso a paso de experimentos físicos modificando una variable a la vez.
+### Herramienta web (GitHub Pages)
 
----
+Disponible en [https://lorenhey.github.io/SweetSpot/](https://lorenhey.github.io/SweetSpot/) sin backend ni instalación (con selector `ES / EN` en la barra superior):
 
-## 🎯 Filosofía de Ingeniería
+- Planta 2D interactiva de sala rectangular con arrastre de monitores y oyente.
+- Modos propios teóricos (axiales, tangenciales y oblicuos según Rayleigh) con mapa de presión 2D al hacer clic en cualquier modo.
+- Frecuencia de transición de Schroeder ($f_s$), proporciones de Bolt/Sepmeyer y criterio de Bonello por tercios de octava.
+- Interferencia con fronteras (SBIR) por método de fuente imagen para las seis superficies de la sala.
+- Trazado de rayos de primeras reflexiones y puntos de tratamiento (RFZ / técnica del espejo).
+- Curva estimada de baja frecuencia (20 a 500 Hz) combinando modos y SBIR.
+- Asistente paso a paso para proponer ajustes de una variable por vez y exportar sesiones en JSON, CSV o PNG.
 
-Antes de aplicar ecualización electrónica (Dirac, Sonarworks, miniDSP), **mové tus parlantes y tu silla**. 
+### Por qué mover antes de ecualizar
 
-Un nulo acústico profundo provocado por interferencia destructiva de frontera (SBIR) o un nodo axial de la sala es un **sistema de fase no mínima**:
-1. La onda directa y la onda reflejada provienen del mismo parlante.
-2. Si aplicás $+12\text{ dB}$ en el DSP a 80 Hz, amplificás tanto la onda directa como la que choca contra la pared.
-3. Ambas se cancelan con la misma severidad en tus oídos, pero tu amplificador pierde todo el *headroom* y el parlante entra en distorsión armónica no lineal.
+Un nulo profundo causado por interferencia destructiva con una pared (SBIR) o por sentarse en un plano nodal (por ejemplo al 50% del largo de la sala) no es un sistema de fase mínima. La onda directa y la reflejada provienen del mismo parlante: aplicar $+12\text{ dB}$ en un ecualizador amplifica ambas ondas por igual y la cancelación persiste, a costa de perder *headroom* y aumentar la distorsión del woofer. La corrección efectiva empieza moviendo los monitores o la silla y midiendo cada cambio.
 
-**Los problemas de ubicación física requieren soluciones acústicas físicas.**
+### Paquete Python y CLI (`sweetspot`)
 
----
+Además de la herramienta web, el repositorio incluye el paquete en Python 3.12 para medición por *sweep* exponencial, deconvolución de respuesta al impulso (IR), integración retrocedida de Schroeder (EDT, T20, T30) e interfaz de escritorio en PySide6.
 
-## 📦 Suite de Escritorio Python (`sweetspot`)
-
-Además de la aplicación web, el repositorio incluye el paquete de escritorio profesional en Python:
-
-### Instalación
+#### Instalación
 
 ```bash
-# Clonar el repositorio
 git clone https://github.com/lorenhey/SweetSpot.git
 cd SweetSpot
 
-# Crear entorno virtual e instalar dependencias
+# Con uv
 uv sync
 
-# O con pip tradicional:
+# O con entorno virtual estándar
 python -m venv .venv
-source .venv/bin/activate  # En Windows: .venv\Scripts\Activate.ps1
+.venv\Scripts\Activate.ps1
 pip install -e .
 ```
 
-### Ejecución de la Interfaz Gráfica (PySide6)
+#### Uso
 
 ```bash
+# Interfaz de escritorio (PySide6)
 uv run sweetspot-gui
-```
 
-### CLI y Medición por Sine Sweep Logarítmico
+# Listar dispositivos de audio detectados por sounddevice
+uv run sweetspot devices
 
-```bash
-# Ejecutar demo sintética
+# Demo iterativo en consola con sala sintética (sin hardware)
 uv run sweetspot demo
 
-# Generar barrido sinusoidal de prueba
-uv run sweetspot sweep --start 20 --end 20000 --duration 5.0 --output sweep.wav
-
-# Medir respuesta al impulso real con interfaz de audio y micrófono calibrado
-uv run sweetspot measure --input-device 1 --output-device 2 --out-dir ./mediciones
+# Flujo de medición por canal
+uv run sweetspot measure --device-id 0 --channel left --duration 3.0 --level -12.0
 ```
 
-### Ejecución de Tests
+#### Pruebas
 
 ```bash
-$env:PYTHONPATH="src"; uv run pytest
+uv run pytest
 ```
 
----
+### Alcance y limitaciones
 
-## 📐 Criterios y Métricas Soportadas
+- Pensado para 1 sala, 2 monitores (L/R) y 1 posición principal de escucha.
+- No genera filtros EQ ni FIR automáticos.
+- La versión web calcula un modelo analítico de paredes rígidas (modos + SBIR de primer orden) para formular hipótesis; no reemplaza la medición acústica real.
 
-- **Frecuencia de Schroeder:** $f_s \approx 2000 \sqrt{T_{60} / V}$
-- **Ecuación de Rayleigh:** $f = \frac{c}{2} \sqrt{(n_x/W)^2 + (n_y/L)^2 + (n_z/H)^2}$
-- **Nulo de Cuarto de Onda SBIR:** $f_{\text{null}} \approx \frac{c}{4 d_w}$
-- **Criterio de Bonello:** Monotonía en densidad de modos por tercio de octava (20 Hz - 250 Hz).
-- **Proporciones de Bolt & Sepmeyer:** Detección de degeneraciones modales en salas cúbicas o de planta cuadrada.
-- **Regla del 38% de Wes Lachot:** Ubicación neutral respecto a nodos centrales (50%) y de cuartos de onda (25% / 75%).
-- **Integración Retrocedida de Schroeder:** Extracción de EDT, T20 y T30 a partir de respuestas al impulso (IR).
+### Licencia
+
+MIT.
 
 ---
 
-## 📄 Licencia
+## English
 
-Distribuido bajo licencia MIT. Consultá el archivo [LICENSE](LICENSE) para más información.
+Experimental assistant and room acoustics tool for placing two studio monitors and a single listening position before resorting to electronic equalization.
+
+The working principle is straightforward: the geometric model suggests what to test next, and the microphone decides in the real room. The loop is measure, change one physical variable at a time (listener position, front-wall distance, monitor spacing, or toe-in), measure again, and compare trade-offs.
+
+### Web tool (GitHub Pages)
+
+Available at [https://lorenhey.github.io/SweetSpot/](https://lorenhey.github.io/SweetSpot/) with no backend or installation required (includes an `ES / EN` switch in the top bar):
+
+- Interactive 2D rectangular room floor plan with draggable monitors and listener.
+- Theoretical room modes (axial, tangential, and oblique via Rayleigh's formula) with a 2D pressure map when clicking any mode row.
+- Schroeder transition frequency ($f_s$), Bolt/Sepmeyer room ratio checks, and third-octave Bonello modal density check.
+- Speaker-Boundary Interference Response (SBIR) via image sources across all six room boundaries.
+- Specular first-reflection ray tracing and reflection-free zone (RFZ / mirror technique) wall markers.
+- Estimated low-frequency response curve (20 to 500 Hz) combining modal coupling and first-order SBIR.
+- Step-by-step single-variable placement suggestions with JSON, CSV, and PNG export.
+
+### Why placement comes before EQ
+
+A deep acoustic null caused by wall boundary interference (SBIR) or by sitting on a modal nodal plane (such as 50% of room length) is not a minimum-phase problem. Direct and reflected waves come from the same driver: boosting $+12\text{ dB}$ in EQ raises both waves equally, so the cancellation remains while amplifier headroom drops and woofer excursion and distortion rise. Effective correction starts by moving speakers or the chair and verifying each move by measurement.
+
+### Python package and CLI (`sweetspot`)
+
+Alongside the browser tool, the repository contains the Python 3.12 `sweetspot` package for exponential sine sweep generation, inverse-filter impulse response (IR) deconvolution, Schroeder backward integration (EDT, T20, T30), and a PySide6 desktop GUI.
+
+#### Installation
+
+```bash
+git clone https://github.com/lorenhey/SweetSpot.git
+cd SweetSpot
+
+# With uv
+uv sync
+
+# Or with a standard virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\Activate.ps1
+pip install -e .
+```
+
+#### Usage
+
+```bash
+# Desktop GUI (PySide6)
+uv run sweetspot-gui
+
+# List audio devices detected by sounddevice
+uv run sweetspot devices
+
+# Interactive console demo with a synthetic room (no audio hardware required)
+uv run sweetspot demo --lang en
+
+# Run single-channel measurement workflow
+uv run sweetspot measure --device-id 0 --channel left --duration 3.0 --level -12.0 --lang en
+```
+
+#### Tests
+
+```bash
+uv run pytest
+```
+
+### Scope and limitations
+
+- Scoped to 1 room, 2 monitors (L/R), and 1 primary listening position.
+- Does not generate automatic EQ or FIR correction filters.
+- The web tool computes an ideal rigid-wall analytical model (modes + first-order SBIR) to form hypotheses; it does not replace real microphone measurements.
+
+### License
+
+MIT.

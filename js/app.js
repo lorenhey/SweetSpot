@@ -1,5 +1,5 @@
 /**
- * SweetSpot - Controlador principal de la interfaz web
+ * SweetSpot - Controlador principal de la interfaz web (ES / EN)
  */
 
 import {
@@ -14,34 +14,34 @@ import {
 import { StudioCanvasRenderer } from './canvas-renderer.js';
 import { FrequencyResponseChart } from './response-chart.js';
 import { AcousticRecommender } from './recommender.js';
-
-const SURFACE_SHORT_NAMES = {
-  front: 'Frontal',
-  left: 'Lateral izq.',
-  right: 'Lateral der.',
-  back: 'Trasera',
-  floor: 'Piso',
-  ceiling: 'Techo'
-};
-
-const MODE_LABELS = {
-  axial: 'Axial',
-  tangential: 'Tangencial',
-  oblique: 'Oblicuo'
-};
+import { I18N } from './i18n.js';
 
 const DEFAULT_MODES_LIMIT = 12;
 
 class SweetSpotApp {
   constructor() {
     this.recommender = new AcousticRecommender();
+    this.lang = this.detectInitialLang();
     this.showAllModes = false;
     this.lastModes = [];
+    this.currentProposal = null;
     this.initDOM();
     this.initCanvasAndChart();
     this.bindEvents();
     this.applyPreset('home-studio');
+    this.setLanguage(this.lang);
     this.renderMathSafe();
+  }
+
+  detectInitialLang() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('lang') === 'en') return 'en';
+    try {
+      if (localStorage.getItem('sweetspot_lang') === 'en') return 'en';
+    } catch {
+      // ignore storage errors
+    }
+    return 'es';
   }
 
   initDOM() {
@@ -110,6 +110,47 @@ class SweetSpotApp {
     this.chart = new FrequencyResponseChart(responseCanvas);
   }
 
+  setLanguage(lang) {
+    this.lang = lang === 'en' ? 'en' : 'es';
+    const t = I18N[this.lang];
+
+    document.documentElement.lang = this.lang;
+    document.title = t.pageTitle;
+
+    try {
+      localStorage.setItem('sweetspot_lang', this.lang);
+    } catch {
+      // ignore storage errors
+    }
+
+    document.querySelectorAll('[data-lang-btn]').forEach((btn) => {
+      btn.classList.toggle('active', btn.getAttribute('data-lang-btn') === this.lang);
+    });
+
+    document.querySelectorAll('[data-i18n]').forEach((el) => {
+      const key = el.getAttribute('data-i18n');
+      if (typeof t[key] === 'string') {
+        el.textContent = t[key];
+      }
+    });
+
+    document.querySelectorAll('[data-lang]').forEach((block) => {
+      block.hidden = block.getAttribute('data-lang') !== this.lang;
+    });
+
+    this.renderer.setLanguage(this.lang);
+    this.chart.setLanguage(this.lang);
+    this.recalculateAll();
+    this.renderExperimentHistory();
+
+    if (this.currentProposal) {
+      this.proposeExperiment();
+    }
+
+    const activePane = document.querySelector('.tab-pane.active');
+    if (activePane) this.renderMathSafe(activePane);
+  }
+
   syncUIFromCanvas(state) {
     const { room, listener, leftMon, rightMon, autoToeIn } = state;
     if (this.dom.roomL) this.dom.roomL.value = room.L.toFixed(2);
@@ -135,6 +176,12 @@ class SweetSpotApp {
   }
 
   bindEvents() {
+    document.querySelectorAll('[data-lang-btn]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        this.setLanguage(btn.getAttribute('data-lang-btn'));
+      });
+    });
+
     const bindSync = (inputEl, sliderEl, callback) => {
       if (inputEl && sliderEl) {
         inputEl.addEventListener('input', () => {
@@ -431,7 +478,16 @@ class SweetSpotApp {
     this.recalculateAll();
   }
 
+  localizeBoltStatus(bolt) {
+    const map = I18N[this.lang].boltStatus;
+    if (bolt.badgeClass === 'badge-danger') return map.cubic;
+    if (bolt.status.includes('Cuadrada')) return map.square;
+    if (bolt.status.includes('Múltiplos')) return map.multiple;
+    return map.favorable;
+  }
+
   recalculateAll() {
+    const t = I18N[this.lang];
     const { room, listener, leftMon, rightMon } = this.renderer.state;
 
     const modes = calculateRoomModes(room.L, room.W, room.H, 320);
@@ -453,14 +509,13 @@ class SweetSpotApp {
     }
     if (this.dom.badgeBolt) {
       const ratioShort = `1 : ${bolt.normW.toFixed(2)} : ${bolt.normL.toFixed(2)}`;
-      this.dom.badgeBolt.textContent = `${ratioShort} (${bolt.status.toLowerCase()})`;
-      this.dom.badgeBolt.title = bolt.feedback;
+      this.dom.badgeBolt.textContent = `${ratioShort} (${this.localizeBoltStatus(bolt)})`;
       this.dom.badgeBolt.className = bolt.badgeClass === 'badge-danger'
         ? 'flag-bad'
         : (bolt.badgeClass === 'badge-warning' ? 'flag-warn' : '');
     }
     if (this.dom.badgeBonello) {
-      this.dom.badgeBonello.textContent = bonello.passes ? 'monótona' : 'con caídas';
+      this.dom.badgeBonello.textContent = bonello.passes ? t.bonelloPass : t.bonelloFail;
       this.dom.badgeBonello.className = bonello.passes ? '' : 'flag-warn';
     }
 
@@ -479,13 +534,14 @@ class SweetSpotApp {
 
   populateHeatmapSelector(modes) {
     if (!this.dom.selectHeatmapMode) return;
+    const t = I18N[this.lang];
     const currentVal = this.dom.selectHeatmapMode.value;
     const topModes = modes.filter((m) => m.freq <= 180 && (m.nx > 0 || m.ny > 0)).slice(0, 14);
 
     let html = '';
     topModes.forEach((m) => {
       const val = `${m.nx},${m.ny}`;
-      html += `<option value="${val}">${MODE_LABELS[m.type]} (${m.nx}, ${m.ny}, ${m.nz}) - ${m.freq.toFixed(1)} Hz</option>`;
+      html += `<option value="${val}">${t.modeTypes[m.type]} (${m.nx}, ${m.ny}, ${m.nz}) - ${m.freq.toFixed(1)} Hz</option>`;
     });
 
     this.dom.selectHeatmapMode.innerHTML = html;
@@ -496,6 +552,7 @@ class SweetSpotApp {
 
   populateModesTable(modes) {
     if (!this.dom.modesTableBody) return;
+    const t = I18N[this.lang];
     const limit = this.showAllModes ? Math.min(modes.length, 40) : DEFAULT_MODES_LIMIT;
     const displayModes = modes.slice(0, limit);
     let html = '';
@@ -504,10 +561,10 @@ class SweetSpotApp {
       const clickable = m.nx > 0 || m.ny > 0;
       const relDb = m.type === 'axial' ? '0.0' : (m.type === 'tangential' ? '-3.0' : '-6.0');
       html += `
-        <tr${clickable ? ` class="mode-clickable" data-nx="${m.nx}" data-ny="${m.ny}" title="Ver distribución 2D de este modo"` : ''}>
+        <tr${clickable ? ` class="mode-clickable" data-nx="${m.nx}" data-ny="${m.ny}"` : ''}>
           <td class="num">${m.freq.toFixed(1)}</td>
           <td class="mono">(${m.nx}, ${m.ny}, ${m.nz})</td>
-          <td class="mode-${m.type}">${MODE_LABELS[m.type]}</td>
+          <td class="mode-${m.type}">${t.modeTypes[m.type]}</td>
           <td class="num">${relDb}</td>
         </tr>
       `;
@@ -519,8 +576,8 @@ class SweetSpotApp {
         const cap = Math.min(modes.length, 40);
         this.dom.btnToggleAllModes.style.display = 'inline';
         this.dom.btnToggleAllModes.textContent = this.showAllModes
-          ? `Mostrar menos (${DEFAULT_MODES_LIMIT} primeros)`
-          : `Mostrar más modos (hasta ${cap} de ${modes.length})`;
+          ? t.modesLess(DEFAULT_MODES_LIMIT)
+          : t.modesMore(cap, modes.length);
       } else {
         this.dom.btnToggleAllModes.style.display = 'none';
       }
@@ -529,11 +586,12 @@ class SweetSpotApp {
 
   populateSBIRTable(sbir) {
     if (!this.dom.sbirTableBody) return;
+    const t = I18N[this.lang];
     let html = '';
 
     sbir.boundaries.forEach((b) => {
       const danger = b.fNull >= 60 && b.fNull <= 165;
-      const shortName = SURFACE_SHORT_NAMES[b.id] || b.name;
+      const shortName = t.surfaces[b.id] || b.name;
       html += `
         <tr>
           <td>${shortName}</td>
@@ -549,7 +607,7 @@ class SweetSpotApp {
 
   updateDiagnostics(room, listener, leftMon, rightMon) {
     if (!this.dom.diagnosticCards) return;
-    const diagnostics = this.recommender.evaluateSetup(room, listener, leftMon, rightMon);
+    const diagnostics = this.recommender.evaluateSetup(room, listener, leftMon, rightMon, this.lang);
 
     let html = '';
     diagnostics.forEach((d) => {
@@ -568,8 +626,9 @@ class SweetSpotApp {
   }
 
   proposeExperiment() {
+    const t = I18N[this.lang];
     const { room, listener, leftMon, rightMon } = this.renderer.state;
-    const proposal = this.recommender.proposeNextExperiment(room, listener, leftMon, rightMon);
+    const proposal = this.recommender.proposeNextExperiment(room, listener, leftMon, rightMon, this.lang);
     this.currentProposal = proposal;
 
     if (this.dom.experimentProposalCard) {
@@ -577,7 +636,7 @@ class SweetSpotApp {
         <div class="proposal-block">
           <p><strong>${proposal.actionName}</strong></p>
           <p>${proposal.reason}</p>
-          <p class="proposal-meta">Variable: <code>${proposal.variable}</code> · Variación: <strong>${proposal.deltaText}</strong></p>
+          <p class="proposal-meta">${t.proposalVar} <code>${proposal.variable}</code> · ${t.proposalDelta} <strong>${proposal.deltaText}</strong></p>
         </div>
       `;
       if (this.dom.btnApplyExperiment) {
@@ -588,6 +647,7 @@ class SweetSpotApp {
 
   applyProposedExperiment() {
     if (!this.currentProposal) return;
+    const t = I18N[this.lang];
     const { newConfig, actionName, variable, deltaText } = this.currentProposal;
     const state = {
       ...this.renderer.state,
@@ -615,23 +675,32 @@ class SweetSpotApp {
       action: actionName,
       variable,
       delta: deltaText,
-      configSummary: `Oyente (${state.listener.x.toFixed(2)}, ${state.listener.y.toFixed(2)}) · Mon. L (${state.leftMon.x.toFixed(2)}, ${state.leftMon.y.toFixed(2)})`
+      configSummary: t.summaryCoords(
+        state.listener.x.toFixed(2),
+        state.listener.y.toFixed(2),
+        state.leftMon.x.toFixed(2),
+        state.leftMon.y.toFixed(2)
+      )
     });
 
+    this.currentProposal = null;
     this.renderExperimentHistory();
 
     if (this.dom.btnApplyExperiment) {
       this.dom.btnApplyExperiment.style.display = 'none';
     }
     if (this.dom.experimentProposalCard) {
-      this.dom.experimentProposalCard.innerHTML = `
-        <p class="proposal-done">Cambio aplicado en el plano y anotado en el historial.</p>
-      `;
+      this.dom.experimentProposalCard.innerHTML = `<p class="proposal-done">${t.proposalApplied}</p>`;
     }
   }
 
   renderExperimentHistory() {
     if (!this.dom.experimentHistoryTable) return;
+    const t = I18N[this.lang];
+    if (this.recommender.history.length === 0) {
+      this.dom.experimentHistoryTable.innerHTML = `<tr><td colspan="6" class="muted-cell">${t.historyEmpty}</td></tr>`;
+      return;
+    }
     let html = '';
     this.recommender.history.forEach((item) => {
       html += `
@@ -694,7 +763,7 @@ class SweetSpotApp {
     const url = canvas.toDataURL('image/png');
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'sweetspot-planta-sala.png';
+    a.download = 'sweetspot-floorplan.png';
     a.click();
   }
 }

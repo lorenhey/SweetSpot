@@ -1,7 +1,7 @@
 [project]
 name = "sweetspot"
 version = "0.1.0"
-description = "Add your description here"
+description = "Asistente experimental y simulador 2D de posicionamiento de monitores y acústica de sala / Experimental monitor placement assistant and 2D room acoustics tool"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

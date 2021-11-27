@@ -3,6 +3,7 @@
  */
 
 import { calculateMirrorReflectionRay } from './acoustics.js';
+import { I18N } from './i18n.js';
 
 const FONT_MONO = "Consolas, 'Liberation Mono', Menlo, monospace";
 const FONT_SANS = "Helvetica, Arial, sans-serif";
@@ -12,6 +13,7 @@ export class StudioCanvasRenderer {
     this.canvas = canvasElement;
     this.ctx = canvasElement.getContext('2d');
     this.onStateChange = onStateChange;
+    this.lang = 'es';
 
     this.state = {
       room: { L: 4.8, W: 3.6, H: 2.5 },
@@ -80,6 +82,11 @@ export class StudioCanvasRenderer {
 
   toMetersY(cY) {
     return (cY - this.offsetY) / this.scale;
+  }
+
+  setLanguage(lang) {
+    this.lang = lang === 'en' ? 'en' : 'es';
+    this.render();
   }
 
   updateState(newState) {
@@ -338,8 +345,9 @@ export class StudioCanvasRenderer {
     ctx.lineTo(rX + rW, midY);
     ctx.stroke();
 
+    const t = I18N[this.lang].canvas;
     this.drawTextWithHalo(
-      '50% L (nodo)',
+      t.node50,
       rX + rW - 8,
       midY + 12,
       '#9e1c1c',
@@ -409,7 +417,7 @@ export class StudioCanvasRenderer {
       }
     }
 
-    const tagText = `Modo (${nx}, ${ny}, 0)`;
+    const tagText = I18N[this.lang].canvas.modeTag(nx, ny);
     ctx.font = `10px ${FONT_MONO}`;
     const tagW = ctx.measureText(tagText).width + 12;
     const tagY = rY + rH - 38;
@@ -571,11 +579,12 @@ export class StudioCanvasRenderer {
     ctx.restore();
     this.drawDimensionLine(rX - 12, rY, rX - 12, rY + rH);
 
+    const t = I18N[this.lang].canvas;
     ctx.font = `10px ${FONT_SANS}`;
     ctx.fillStyle = '#777777';
     ctx.textAlign = 'center';
-    ctx.fillText('Pared frontal (y = 0)', rX + rW / 2, rY + 13);
-    ctx.fillText('Pared trasera (y = L)', rX + rW / 2, rY + rH - 6);
+    ctx.fillText(t.frontWall, rX + rW / 2, rY + 13);
+    ctx.fillText(t.backWall, rX + rW / 2, rY + rH - 6);
 
     ctx.restore();
   }

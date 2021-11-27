@@ -2,6 +2,8 @@
  * SweetSpot - Gráfico logarítmico de respuesta en baja frecuencia (20-500 Hz)
  */
 
+import { I18N } from './i18n.js';
+
 const FONT_MONO = "Consolas, 'Liberation Mono', Menlo, monospace";
 const FONT_SANS = "Helvetica, Arial, sans-serif";
 
@@ -9,6 +11,7 @@ export class FrequencyResponseChart {
   constructor(canvasElement) {
     this.canvas = canvasElement;
     this.ctx = canvasElement.getContext('2d');
+    this.lang = 'es';
     this.curveData = [];
     this.modes = [];
     this.schroederFreq = 180;
@@ -63,6 +66,11 @@ export class FrequencyResponseChart {
       this.hoverY = null;
       this.render();
     });
+  }
+
+  setLanguage(lang) {
+    this.lang = lang === 'en' ? 'en' : 'es';
+    this.render();
   }
 
   setOptions(partialOptions) {
@@ -186,13 +194,14 @@ export class FrequencyResponseChart {
       }
     });
 
+    const t = I18N[this.lang].chart;
     ctx.font = `10px ${FONT_SANS}`;
     ctx.fillStyle = '#555555';
     ctx.textAlign = 'left';
-    ctx.fillText('Nivel relativo (dB)', padding.left, padding.top - 8);
+    ctx.fillText(t.yAxis, padding.left, padding.top - 8);
 
     ctx.textAlign = 'right';
-    ctx.fillText('Frecuencia (Hz)', padding.left + plotWidth, padding.top + plotHeight + 29);
+    ctx.fillText(t.xAxis, padding.left + plotWidth, padding.top + plotHeight + 29);
 
     ctx.restore();
   }
